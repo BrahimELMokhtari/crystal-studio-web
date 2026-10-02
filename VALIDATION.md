@@ -12,7 +12,9 @@ Checked on 2 October 2026 with Python 3.14.7, Node.js 24.21.0 and installed Goog
 
 Python test output includes deprecation warnings from upstream dependencies. No tests failed. The bundled example structures are synthetic demonstrations and regression cases.
 
-Deployment configurations are ready. A public GitHub repository and a Render service have not been created; publishing requires the owner's GitHub and Render connections. Production server operation will be checked after deployment.
+Published on **3 October 2026 (Europe/Paris)**. The [GitHub Pages website](https://brahimelmokhtari.github.io/crystal-studio-web/) returns HTTP 200, and the [Render API health endpoint](https://crystal-studio-api.onrender.com/health) returns HTTP 200 with `status: ok` and `schemaVersion: 1`. The Render service is live on the **Free** plan in Frankfurt. The configured GitHub Pages workflow completed successfully; the source is available in [BrahimELMokhtari/crystal-studio-web](https://github.com/BrahimELMokhtari/crystal-studio-web).
+
+**Live browser verification passed in a clean Chrome session:** repository-path assets and actual WebGL; the embedded API address and exact-origin CORS; a synthetic CIF upload through the public API; correct 0.2 angstrom periodic endpoints and measurements; a doubled supercell and restoration of its original unit cell; PNG resolution metadata and a 5 cm square PDF; and layouts at 320, 375, 768 and 1,440 pixels. No uncaught JavaScript, console or asset errors occurred. The downloadable production build uses the deployed API and a root (`/`) asset path so it can also be served as a standalone static site.
 
 Reproduce the main checks using the commands in README.md. To check the Pages production path, build with `VITE_BASE_PATH=/crystal-studio-web/`, preview that build on port 5175, then run `node tests/pages.mjs`; `PAGES_URL` can override the preview address.
 

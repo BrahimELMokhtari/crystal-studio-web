@@ -2,6 +2,8 @@
 
 Crystal Studio Web runs an interactive crystal viewer in the browser and uses a small Python API to parse uploaded sources. The frontend uses Vite, Three.js and jsPDF; the API uses FastAPI. Publish the contents of this folder as a separate repository.
 
+The deployed workspace is available at [Crystal Studio Web](https://brahimelmokhtari.github.io/crystal-studio-web/). Its Python API runs on [Render Free](https://crystal-studio-api.onrender.com/health), and the source is hosted in [BrahimELMokhtari/crystal-studio-web](https://github.com/BrahimELMokhtari/crystal-studio-web). The published viewer already includes the API address; uploads use that service automatically.
+
 See [VALIDATION.md](VALIDATION.md) for tested features and export measurements. The supplied archive also includes a production frontend build in `frontend/dist`.
 
 ## Run locally
