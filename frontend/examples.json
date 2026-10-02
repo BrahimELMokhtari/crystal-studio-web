@@ -1,0 +1,1282 @@
+[
+  {
+    "id": "nacl",
+    "label": "Sodium chloride · rocksalt",
+    "structure": {
+      "schemaVersion": 1,
+      "name": "Sodium chloride · rocksalt",
+      "formula": "Cl4Na4",
+      "cell": {
+        "vectors": [
+          [
+            5.64,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            5.64,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            5.64
+          ]
+        ],
+        "lengths": [
+          5.64,
+          5.64,
+          5.64
+        ],
+        "angles": [
+          90.0,
+          90.0,
+          90.0
+        ],
+        "volume": 179.40614399999995,
+        "periodic": true
+      },
+      "atoms": [
+        {
+          "id": 0,
+          "element": "Na",
+          "fractional": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "covalentRadius": 1.66,
+          "vdwRadius": 2.27,
+          "occupancy": 1.0
+        },
+        {
+          "id": 1,
+          "element": "Na",
+          "fractional": [
+            0.0,
+            0.5,
+            0.5
+          ],
+          "position": [
+            0.0,
+            2.82,
+            2.82
+          ],
+          "covalentRadius": 1.66,
+          "vdwRadius": 2.27,
+          "occupancy": 1.0
+        },
+        {
+          "id": 2,
+          "element": "Na",
+          "fractional": [
+            0.5,
+            0.0,
+            0.5
+          ],
+          "position": [
+            2.82,
+            0.0,
+            2.82
+          ],
+          "covalentRadius": 1.66,
+          "vdwRadius": 2.27,
+          "occupancy": 1.0
+        },
+        {
+          "id": 3,
+          "element": "Na",
+          "fractional": [
+            0.5,
+            0.5,
+            0.0
+          ],
+          "position": [
+            2.82,
+            2.82,
+            0.0
+          ],
+          "covalentRadius": 1.66,
+          "vdwRadius": 2.27,
+          "occupancy": 1.0
+        },
+        {
+          "id": 4,
+          "element": "Cl",
+          "fractional": [
+            0.5,
+            0.5,
+            0.5
+          ],
+          "position": [
+            2.82,
+            2.82,
+            2.82
+          ],
+          "covalentRadius": 1.02,
+          "vdwRadius": 1.75,
+          "occupancy": 1.0
+        },
+        {
+          "id": 5,
+          "element": "Cl",
+          "fractional": [
+            0.5,
+            0.0,
+            0.0
+          ],
+          "position": [
+            2.82,
+            0.0,
+            0.0
+          ],
+          "covalentRadius": 1.02,
+          "vdwRadius": 1.75,
+          "occupancy": 1.0
+        },
+        {
+          "id": 6,
+          "element": "Cl",
+          "fractional": [
+            0.0,
+            0.5,
+            0.0
+          ],
+          "position": [
+            0.0,
+            2.82,
+            0.0
+          ],
+          "covalentRadius": 1.02,
+          "vdwRadius": 1.75,
+          "occupancy": 1.0
+        },
+        {
+          "id": 7,
+          "element": "Cl",
+          "fractional": [
+            0.0,
+            0.0,
+            0.5
+          ],
+          "position": [
+            0.0,
+            0.0,
+            2.82
+          ],
+          "covalentRadius": 1.02,
+          "vdwRadius": 1.75,
+          "occupancy": 1.0
+        }
+      ],
+      "bonds": [
+        {
+          "i": 0,
+          "j": 5,
+          "shift": [
+            -1,
+            0,
+            0
+          ],
+          "start": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "end": [
+            -2.82,
+            0.0,
+            0.0
+          ],
+          "distance": 2.82
+        },
+        {
+          "i": 0,
+          "j": 5,
+          "shift": [
+            0,
+            0,
+            0
+          ],
+          "start": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "end": [
+            2.82,
+            0.0,
+            0.0
+          ],
+          "distance": 2.82
+        },
+        {
+          "i": 0,
+          "j": 6,
+          "shift": [
+            0,
+            -1,
+            0
+          ],
+          "start": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "end": [
+            0.0,
+            -2.82,
+            0.0
+          ],
+          "distance": 2.82
+        },
+        {
+          "i": 0,
+          "j": 6,
+          "shift": [
+            0,
+            0,
+            0
+          ],
+          "start": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "end": [
+            0.0,
+            2.82,
+            0.0
+          ],
+          "distance": 2.82
+        },
+        {
+          "i": 0,
+          "j": 7,
+          "shift": [
+            0,
+            0,
+            -1
+          ],
+          "start": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "end": [
+            0.0,
+            0.0,
+            -2.82
+          ],
+          "distance": 2.82
+        },
+        {
+          "i": 0,
+          "j": 7,
+          "shift": [
+            0,
+            0,
+            0
+          ],
+          "start": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "end": [
+            0.0,
+            0.0,
+            2.82
+          ],
+          "distance": 2.82
+        },
+        {
+          "i": 1,
+          "j": 4,
+          "shift": [
+            -1,
+            0,
+            0
+          ],
+          "start": [
+            0.0,
+            2.82,
+            2.82
+          ],
+          "end": [
+            -2.82,
+            2.82,
+            2.82
+          ],
+          "distance": 2.82
+        },
+        {
+          "i": 1,
+          "j": 4,
+          "shift": [
+            0,
+            0,
+            0
+          ],
+          "start": [
+            0.0,
+            2.82,
+            2.82
+          ],
+          "end": [
+            2.82,
+            2.82,
+            2.82
+          ],
+          "distance": 2.82
+        },
+        {
+          "i": 1,
+          "j": 6,
+          "shift": [
+            0,
+            0,
+            0
+          ],
+          "start": [
+            0.0,
+            2.82,
+            2.82
+          ],
+          "end": [
+            0.0,
+            2.82,
+            0.0
+          ],
+          "distance": 2.82
+        },
+        {
+          "i": 1,
+          "j": 6,
+          "shift": [
+            0,
+            0,
+            1
+          ],
+          "start": [
+            0.0,
+            2.82,
+            2.82
+          ],
+          "end": [
+            0.0,
+            2.82,
+            5.64
+          ],
+          "distance": 2.82
+        },
+        {
+          "i": 1,
+          "j": 7,
+          "shift": [
+            0,
+            0,
+            0
+          ],
+          "start": [
+            0.0,
+            2.82,
+            2.82
+          ],
+          "end": [
+            0.0,
+            0.0,
+            2.82
+          ],
+          "distance": 2.82
+        },
+        {
+          "i": 1,
+          "j": 7,
+          "shift": [
+            0,
+            1,
+            0
+          ],
+          "start": [
+            0.0,
+            2.82,
+            2.82
+          ],
+          "end": [
+            0.0,
+            5.64,
+            2.82
+          ],
+          "distance": 2.82
+        },
+        {
+          "i": 2,
+          "j": 4,
+          "shift": [
+            0,
+            -1,
+            0
+          ],
+          "start": [
+            2.82,
+            0.0,
+            2.82
+          ],
+          "end": [
+            2.82,
+            -2.82,
+            2.82
+          ],
+          "distance": 2.82
+        },
+        {
+          "i": 2,
+          "j": 4,
+          "shift": [
+            0,
+            0,
+            0
+          ],
+          "start": [
+            2.82,
+            0.0,
+            2.82
+          ],
+          "end": [
+            2.82,
+            2.82,
+            2.82
+          ],
+          "distance": 2.82
+        },
+        {
+          "i": 2,
+          "j": 5,
+          "shift": [
+            0,
+            0,
+            0
+          ],
+          "start": [
+            2.82,
+            0.0,
+            2.82
+          ],
+          "end": [
+            2.82,
+            0.0,
+            0.0
+          ],
+          "distance": 2.82
+        },
+        {
+          "i": 2,
+          "j": 5,
+          "shift": [
+            0,
+            0,
+            1
+          ],
+          "start": [
+            2.82,
+            0.0,
+            2.82
+          ],
+          "end": [
+            2.82,
+            0.0,
+            5.64
+          ],
+          "distance": 2.82
+        },
+        {
+          "i": 2,
+          "j": 7,
+          "shift": [
+            0,
+            0,
+            0
+          ],
+          "start": [
+            2.82,
+            0.0,
+            2.82
+          ],
+          "end": [
+            0.0,
+            0.0,
+            2.82
+          ],
+          "distance": 2.82
+        },
+        {
+          "i": 2,
+          "j": 7,
+          "shift": [
+            1,
+            0,
+            0
+          ],
+          "start": [
+            2.82,
+            0.0,
+            2.82
+          ],
+          "end": [
+            5.64,
+            0.0,
+            2.82
+          ],
+          "distance": 2.82
+        },
+        {
+          "i": 3,
+          "j": 4,
+          "shift": [
+            0,
+            0,
+            -1
+          ],
+          "start": [
+            2.82,
+            2.82,
+            0.0
+          ],
+          "end": [
+            2.82,
+            2.82,
+            -2.82
+          ],
+          "distance": 2.82
+        },
+        {
+          "i": 3,
+          "j": 4,
+          "shift": [
+            0,
+            0,
+            0
+          ],
+          "start": [
+            2.82,
+            2.82,
+            0.0
+          ],
+          "end": [
+            2.82,
+            2.82,
+            2.82
+          ],
+          "distance": 2.82
+        },
+        {
+          "i": 3,
+          "j": 5,
+          "shift": [
+            0,
+            0,
+            0
+          ],
+          "start": [
+            2.82,
+            2.82,
+            0.0
+          ],
+          "end": [
+            2.82,
+            0.0,
+            0.0
+          ],
+          "distance": 2.82
+        },
+        {
+          "i": 3,
+          "j": 5,
+          "shift": [
+            0,
+            1,
+            0
+          ],
+          "start": [
+            2.82,
+            2.82,
+            0.0
+          ],
+          "end": [
+            2.82,
+            5.64,
+            0.0
+          ],
+          "distance": 2.82
+        },
+        {
+          "i": 3,
+          "j": 6,
+          "shift": [
+            0,
+            0,
+            0
+          ],
+          "start": [
+            2.82,
+            2.82,
+            0.0
+          ],
+          "end": [
+            0.0,
+            2.82,
+            0.0
+          ],
+          "distance": 2.82
+        },
+        {
+          "i": 3,
+          "j": 6,
+          "shift": [
+            1,
+            0,
+            0
+          ],
+          "start": [
+            2.82,
+            2.82,
+            0.0
+          ],
+          "end": [
+            5.64,
+            2.82,
+            0.0
+          ],
+          "distance": 2.82
+        }
+      ],
+      "elements": [
+        {
+          "symbol": "Na",
+          "count": 4,
+          "color": "#ab5cf2"
+        },
+        {
+          "symbol": "Cl",
+          "count": 4,
+          "color": "#1ff01f"
+        }
+      ],
+      "source": {
+        "filename": "nacl-idealized.cif",
+        "format": "example",
+        "description": "Idealized synthetic example for visualization and geometry checks; not an experimental refinement."
+      },
+      "warnings": [],
+      "repetitions": [
+        1,
+        1,
+        1
+      ],
+      "baseAtomCount": 8,
+      "bondScale": 1.1
+    }
+  },
+  {
+    "id": "bcc",
+    "label": "Iron · body-centered cubic",
+    "structure": {
+      "schemaVersion": 1,
+      "name": "Iron · body-centered cubic",
+      "formula": "Fe2",
+      "cell": {
+        "vectors": [
+          [
+            2.8665,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            2.8665,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            2.8665
+          ]
+        ],
+        "lengths": [
+          2.8665,
+          2.8665,
+          2.8665
+        ],
+        "angles": [
+          90.0,
+          90.0,
+          90.0
+        ],
+        "volume": 23.553520979625002,
+        "periodic": true
+      },
+      "atoms": [
+        {
+          "id": 0,
+          "element": "Fe",
+          "fractional": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "covalentRadius": 1.32,
+          "vdwRadius": 1.98,
+          "occupancy": 1.0
+        },
+        {
+          "id": 1,
+          "element": "Fe",
+          "fractional": [
+            0.5,
+            0.5,
+            0.5
+          ],
+          "position": [
+            1.43325,
+            1.43325,
+            1.43325
+          ],
+          "covalentRadius": 1.32,
+          "vdwRadius": 1.98,
+          "occupancy": 1.0
+        }
+      ],
+      "bonds": [
+        {
+          "i": 0,
+          "j": 0,
+          "shift": [
+            -1,
+            0,
+            0
+          ],
+          "start": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "end": [
+            -2.8665,
+            0.0,
+            0.0
+          ],
+          "distance": 2.8665
+        },
+        {
+          "i": 0,
+          "j": 0,
+          "shift": [
+            0,
+            -1,
+            0
+          ],
+          "start": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "end": [
+            0.0,
+            -2.8665,
+            0.0
+          ],
+          "distance": 2.8665
+        },
+        {
+          "i": 0,
+          "j": 0,
+          "shift": [
+            0,
+            0,
+            -1
+          ],
+          "start": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "end": [
+            0.0,
+            0.0,
+            -2.8665
+          ],
+          "distance": 2.8665
+        },
+        {
+          "i": 0,
+          "j": 1,
+          "shift": [
+            -1,
+            -1,
+            -1
+          ],
+          "start": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "end": [
+            -1.43325,
+            -1.43325,
+            -1.43325
+          ],
+          "distance": 2.4824618199480932
+        },
+        {
+          "i": 0,
+          "j": 1,
+          "shift": [
+            -1,
+            -1,
+            0
+          ],
+          "start": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "end": [
+            -1.43325,
+            -1.43325,
+            1.43325
+          ],
+          "distance": 2.4824618199480932
+        },
+        {
+          "i": 0,
+          "j": 1,
+          "shift": [
+            -1,
+            0,
+            -1
+          ],
+          "start": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "end": [
+            -1.43325,
+            1.43325,
+            -1.43325
+          ],
+          "distance": 2.4824618199480932
+        },
+        {
+          "i": 0,
+          "j": 1,
+          "shift": [
+            -1,
+            0,
+            0
+          ],
+          "start": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "end": [
+            -1.43325,
+            1.43325,
+            1.43325
+          ],
+          "distance": 2.4824618199480932
+        },
+        {
+          "i": 0,
+          "j": 1,
+          "shift": [
+            0,
+            -1,
+            -1
+          ],
+          "start": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "end": [
+            1.43325,
+            -1.43325,
+            -1.43325
+          ],
+          "distance": 2.4824618199480932
+        },
+        {
+          "i": 0,
+          "j": 1,
+          "shift": [
+            0,
+            -1,
+            0
+          ],
+          "start": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "end": [
+            1.43325,
+            -1.43325,
+            1.43325
+          ],
+          "distance": 2.4824618199480932
+        },
+        {
+          "i": 0,
+          "j": 1,
+          "shift": [
+            0,
+            0,
+            -1
+          ],
+          "start": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "end": [
+            1.43325,
+            1.43325,
+            -1.43325
+          ],
+          "distance": 2.4824618199480932
+        },
+        {
+          "i": 0,
+          "j": 1,
+          "shift": [
+            0,
+            0,
+            0
+          ],
+          "start": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "end": [
+            1.43325,
+            1.43325,
+            1.43325
+          ],
+          "distance": 2.4824618199480932
+        },
+        {
+          "i": 1,
+          "j": 1,
+          "shift": [
+            -1,
+            0,
+            0
+          ],
+          "start": [
+            1.43325,
+            1.43325,
+            1.43325
+          ],
+          "end": [
+            -1.43325,
+            1.43325,
+            1.43325
+          ],
+          "distance": 2.8665
+        },
+        {
+          "i": 1,
+          "j": 1,
+          "shift": [
+            0,
+            -1,
+            0
+          ],
+          "start": [
+            1.43325,
+            1.43325,
+            1.43325
+          ],
+          "end": [
+            1.43325,
+            -1.43325,
+            1.43325
+          ],
+          "distance": 2.8665
+        },
+        {
+          "i": 1,
+          "j": 1,
+          "shift": [
+            0,
+            0,
+            -1
+          ],
+          "start": [
+            1.43325,
+            1.43325,
+            1.43325
+          ],
+          "end": [
+            1.43325,
+            1.43325,
+            -1.43325
+          ],
+          "distance": 2.8665
+        }
+      ],
+      "elements": [
+        {
+          "symbol": "Fe",
+          "count": 2,
+          "color": "#e06633"
+        }
+      ],
+      "source": {
+        "filename": "bcc-idealized.cif",
+        "format": "example",
+        "description": "Idealized synthetic example for visualization and geometry checks; not an experimental refinement."
+      },
+      "warnings": [
+        "Some elements lack tabulated van der Waals radii; their space-filling radii use 1.5 times the covalent radius."
+      ],
+      "repetitions": [
+        1,
+        1,
+        1
+      ],
+      "baseAtomCount": 2,
+      "bondScale": 1.1
+    }
+  },
+  {
+    "id": "skew",
+    "label": "Hexagonal cell · illustrative carbon",
+    "structure": {
+      "schemaVersion": 1,
+      "name": "Hexagonal cell · illustrative carbon",
+      "formula": "C2",
+      "cell": {
+        "vectors": [
+          [
+            2.46,
+            0.0,
+            0.0
+          ],
+          [
+            -1.23,
+            2.1304224933,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            3.4
+          ]
+        ],
+        "lengths": [
+          2.46,
+          2.459999999991583,
+          3.4
+        ],
+        "angles": [
+          90.0,
+          90.0,
+          120.00000000011319
+        ],
+        "volume": 17.818853733961202,
+        "periodic": true
+      },
+      "atoms": [
+        {
+          "id": 0,
+          "element": "C",
+          "fractional": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "position": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "covalentRadius": 0.76,
+          "vdwRadius": 1.7,
+          "occupancy": 1.0
+        },
+        {
+          "id": 1,
+          "element": "C",
+          "fractional": [
+            0.3333333333333333,
+            0.6666666666666666,
+            0.5
+          ],
+          "position": [
+            8.511709855459533e-18,
+            1.4202816622,
+            1.7
+          ],
+          "covalentRadius": 0.76,
+          "vdwRadius": 1.7,
+          "occupancy": 1.0
+        }
+      ],
+      "bonds": [],
+      "elements": [
+        {
+          "symbol": "C",
+          "count": 2,
+          "color": "#909090"
+        }
+      ],
+      "source": {
+        "filename": "skew-idealized.cif",
+        "format": "example",
+        "description": "Idealized synthetic example for visualization and geometry checks; not an experimental refinement."
+      },
+      "warnings": [],
+      "repetitions": [
+        1,
+        1,
+        1
+      ],
+      "baseAtomCount": 2,
+      "bondScale": 1.1
+    }
+  },
+  {
+    "id": "periodic",
+    "label": "Periodic boundary · two atoms",
+    "structure": {
+      "schemaVersion": 1,
+      "name": "Periodic boundary · two atoms",
+      "formula": "H2",
+      "cell": {
+        "vectors": [
+          [
+            10.0,
+            0.0,
+            0.0
+          ],
+          [
+            0.0,
+            10.0,
+            0.0
+          ],
+          [
+            0.0,
+            0.0,
+            10.0
+          ]
+        ],
+        "lengths": [
+          10.0,
+          10.0,
+          10.0
+        ],
+        "angles": [
+          90.0,
+          90.0,
+          90.0
+        ],
+        "volume": 1000.0000000000007,
+        "periodic": true
+      },
+      "atoms": [
+        {
+          "id": 0,
+          "element": "H",
+          "fractional": [
+            0.010000000000000002,
+            0.5,
+            0.5
+          ],
+          "position": [
+            0.10000000000000002,
+            5.0,
+            5.0
+          ],
+          "covalentRadius": 0.31,
+          "vdwRadius": 1.2,
+          "occupancy": 1.0
+        },
+        {
+          "id": 1,
+          "element": "H",
+          "fractional": [
+            0.9900000000000001,
+            0.5,
+            0.5
+          ],
+          "position": [
+            9.9,
+            5.0,
+            5.0
+          ],
+          "covalentRadius": 0.31,
+          "vdwRadius": 1.2,
+          "occupancy": 1.0
+        }
+      ],
+      "bonds": [
+        {
+          "i": 0,
+          "j": 1,
+          "shift": [
+            -1,
+            0,
+            0
+          ],
+          "start": [
+            0.10000000000000002,
+            5.0,
+            5.0
+          ],
+          "end": [
+            -0.09999999999999964,
+            5.0,
+            5.0
+          ],
+          "distance": 0.19999999999999968
+        }
+      ],
+      "elements": [
+        {
+          "symbol": "H",
+          "count": 2,
+          "color": "#ffffff"
+        }
+      ],
+      "source": {
+        "filename": "periodic-idealized.cif",
+        "format": "example",
+        "description": "Idealized synthetic example for visualization and geometry checks; not an experimental refinement."
+      },
+      "warnings": [],
+      "repetitions": [
+        1,
+        1,
+        1
+      ],
+      "baseAtomCount": 2,
+      "bondScale": 1.1
+    }
+  }
+]

@@ -1,0 +1,31 @@
+# JavaScript dependencies and build output
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+node_modules/
+
+# Python environments and caches
+backend/.venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Local environment configuration
+.env
+.env.*
+!.env.example
+
+# Local private sources, uploads and exports
+uploads/
+private_sources/
+exports/
+
+# Local test artifacts and OS metadata
+artifacts/
+playwright-report/
+test-results/
+.DS_Store
+Thumbs.db
