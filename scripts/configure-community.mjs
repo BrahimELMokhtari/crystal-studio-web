@@ -50,7 +50,16 @@ export function planCommunityConfiguration(config, {repo = REPOSITORY, deploy = 
     if (!Object.hasOwn(values,name)) continue;
     if (!link) throw new Error(name + ' must be a supported HTTPS hosted payment link.');
     const payment = new URL(link);
-    if (payment.hostname.endsWith('.stripe.com') && /(?:^|\/)(?:test_|cs_test_)/i.test(payment.pathname)) throw new Error('Stripe test payment links cannot be used for this live site.');
+    let pathname;
+    try { pathname = decodeURIComponent(payment.pathname); } catch { throw new Error('Payment links must use valid URL encoding.'); }
+    if (PRIVATE.test(pathname) || /[\x00-\x1f\x7f]/.test(pathname)) throw new Error('Private credentials are not accepted in payment links.');
+    for (const [parameter,value] of payment.searchParams) {
+      // URLSearchParams decodes escaped parameter names and values before inspection.
+      if (/^(?:client_secret|api_key|access_token|refresh_token|password|secret)$/i.test(parameter) || PRIVATE.test(value)) throw new Error('Private credentials are not accepted in payment links.');
+      if (PLACEHOLDER.test(parameter) || PLACEHOLDER.test(value)) throw new Error('Placeholder or test payment settings cannot be used for this live site.');
+    }
+    if (PLACEHOLDER.test(pathname)) throw new Error('Placeholder or test payment settings cannot be used for this live site.');
+    if (payment.hostname.endsWith('.stripe.com') && /(?:^|\/)(?:test_|cs_test_)/i.test(pathname)) throw new Error('Stripe test payment links cannot be used for this live site.');
     values[name] = link;
   }
   return Object.freeze({repository:REPOSITORY,deploy:!!deploy,

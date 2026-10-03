@@ -36,7 +36,7 @@ test('empty, unknown, private and malformed fields are rejected without echoing 
     assert.throws(()=>planCommunityConfiguration(config),error=>!error.message.includes(privateValue)&&!error.message.includes('private-user-password'));
   }
   for(const value of ['', ' ',null,1,false,[],{},'https://ko-fi.com/user\n','x'.repeat(4097)]) assert.throws(()=>planCommunityConfiguration({VITE_DONATION_ONCE_URL:value}));
-  for(const value of ['https://buy.stripe.com/path?api_key=sk_live_private','https://ko-fi.com/name?access_token=private','https://buy.stripe.com/path?client_secret=private']) assert.throws(()=>planCommunityConfiguration({VITE_DONATION_ONCE_URL:value}),/Private/);
+  for(const value of ['https://buy.stripe.com/path?api_key=sk_live_private','https://ko-fi.com/name?access_token=private','https://buy.stripe.com/path?client_secret=private','https://buy.stripe.com/path?client%5Fsecret=private','https://ko-fi.com/name?%61ccess_token=private','https://ko-fi.com/name?description=sk%5Flive%5Fprivate','https://ko-fi.com/%73b%5Fsecret%5Fprivate']) assert.throws(()=>planCommunityConfiguration({VITE_DONATION_ONCE_URL:value}),/Private/);
 });
 
 test('the account public-key guard rejects secret or service_role credentials but allows legacy anon',()=>{
@@ -48,7 +48,7 @@ test('the account public-key guard rejects secret or service_role credentials bu
 test('known browser fixtures, unresolved placeholders and Stripe test mode cannot activate the live site',()=>{
   for(const project of ['abcdefghijklmnopqrst','crystaltest','crystaltestsupabase','your-project','xyzcompany']) assert.throws(()=>planCommunityConfiguration({...account,VITE_SUPABASE_URL:'https://'+project+'.supabase.co'}),/example|Placeholder/i);
   for(const key of ['sb_publishable_public_test_key_123456789','sb_publishable_your-key-goes-here','sb_publishable_<replace-me>','${SUPABASE_KEY}']) assert.throws(()=>planCommunityConfiguration({...account,VITE_SUPABASE_PUBLISHABLE_KEY:key}),/Placeholder/);
-  for(const url of ['https://buy.stripe.com/test_aAb123','https://checkout.stripe.com/c/pay/cs_test_ABC123','https://ko-fi.com/example','https://buy.stripe.com/<link>','https://buy.stripe.com/YOUR-LIVE-MONTHLY-LINK','https://buy.stripe.com/YOUR-LIVE-CHOSEN-AMOUNT-LINK','https://paypal.me/YOUR-NAME']) assert.throws(()=>planCommunityConfiguration({VITE_DONATION_ONCE_URL:url}),/test|Placeholder/);
+  for(const url of ['https://buy.stripe.com/test_aAb123','https://checkout.stripe.com/c/pay/cs_test_ABC123','https://buy.stripe.com/test%5FaAb123','https://checkout.stripe.com/c/pay/cs%5Ftest%5FABC123','https://ko-fi.com/example','https://buy.stripe.com/<link>','https://buy.stripe.com/YOUR-LIVE-MONTHLY-LINK','https://buy.stripe.com/YOUR-LIVE-CHOSEN-AMOUNT-LINK','https://paypal.me/YOUR-NAME','https://buy.stripe.com/%59OUR-LIVE-LINK','https://ko-fi.com/name?description=%50LACEHOLDER']) assert.throws(()=>planCommunityConfiguration({VITE_DONATION_ONCE_URL:url}),/test|Placeholder/);
   assert.equal(planCommunityConfiguration({VITE_DONATION_ONCE_URL:'https://paypal.me/yourcompany'}).readiness.onceLink,true);
 });
 
