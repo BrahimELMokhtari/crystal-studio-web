@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { cellEdges } from './model.js';
+import { layoutElementLegend, drawElementLegend } from './legend.js';
 
 export class CrystalViewer {
   constructor(container, onSelect) {
@@ -104,17 +105,22 @@ export class CrystalViewer {
   capture({width,height,transparent,legend}) {
     const renderer=this.renderer,camera=this.camera,size=renderer.getSize(new THREE.Vector2()),pixelRatio=renderer.getPixelRatio(),oldColor=renderer.getClearColor(new THREE.Color()),oldAlpha=renderer.getClearAlpha();
     const frustum={left:camera.left,right:camera.right,top:camera.top,bottom:camera.bottom};
+    const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const ctx=canvas.getContext('2d');
+    const legendLayout=legend?layoutElementLegend(ctx,this.model.elements,width,height):{height:0};
+    const sceneHeight=height-legendLayout.height,aspect=width/sceneHeight;
     const oldBackground=this.settings.background;let result;
     try {
       this.settings={...this.settings,background:'light'};this.build();
-      renderer.setPixelRatio(1);renderer.setSize(width,height,false);renderer.setClearColor(0xffffff,transparent?0:1);
-      const half=Math.max((frustum.top-frustum.bottom)/2,(frustum.right-frustum.left)/2/(width/height));camera.top=half;camera.bottom=-half;camera.left=-half*width/height;camera.right=half*width/height;camera.updateProjectionMatrix();
+      renderer.setPixelRatio(1);renderer.setSize(width,sceneHeight,false);renderer.setClearColor(0xffffff,transparent?0:1);
+      const half=Math.max((frustum.top-frustum.bottom)/2,(frustum.right-frustum.left)/2/aspect);camera.top=half;camera.bottom=-half;camera.left=-half*aspect;camera.right=half*aspect;camera.updateProjectionMatrix();
       renderer.render(this.scene,camera);
-      const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const ctx=canvas.getContext('2d');ctx.drawImage(renderer.domElement,0,0);
+      if(!transparent){ctx.fillStyle='#ffffff';ctx.fillRect(0,0,width,height);}
+      ctx.drawImage(renderer.domElement,0,legendLayout.height);
       if(legend) {
-        const font=Math.max(14,Math.round(Math.min(width,height)*.023)),pad=font*1.3;ctx.font=font+'px system-ui';ctx.fillStyle='#213b40';let x=pad,y=height-pad;
-        for(const element of this.model.elements){const label=element.symbol+' ('+element.count+')',size=ctx.measureText(label).width+font*2;if(x+size>width-pad){x=pad;y-=font*1.8;}ctx.fillStyle=this.settings.colors[element.symbol]||element.color;ctx.beginPath();ctx.arc(x+font*.32,y-font*.3,font*.3,0,Math.PI*2);ctx.fill();ctx.fillStyle='#213b40';ctx.fillText(label,x+font,y);x+=size;}
-        for(const axis of this.labels){const p=axis.position.clone().project(camera);if(p.z>=-1&&p.z<=1)ctx.fillText(axis.name,(p.x+1)*width/2,(-p.y+1)*height/2);}
+        drawElementLegend(ctx,legendLayout,this.settings.colors);
+        ctx.save();ctx.beginPath();ctx.rect(0,legendLayout.height,width,sceneHeight);ctx.clip();ctx.font=legendLayout.font+'px system-ui';ctx.fillStyle='#213b40';
+        for(const axis of this.labels){const p=axis.position.clone().project(camera);if(p.z>=-1&&p.z<=1)ctx.fillText(axis.name,(p.x+1)*width/2,legendLayout.height+(-p.y+1)*sceneHeight/2);}
+        ctx.restore();
       }
       result=canvas.toDataURL('image/png');
     } finally {

@@ -15,14 +15,14 @@ try {
   await page.goto(base,{waitUntil:'networkidle'});
   await expect(page.locator('#status')).toContainText('Ready');
   await expect(page.locator('#structure-title')).toContainText('Sodium chloride');
-  assert.ok(await page.locator('#viewport canvas').evaluate(canvas=>canvas.toDataURL().length>20000),'Actual WebGL scene is rendered');
+  assert.ok(await page.locator('#viewport > canvas[role="img"]').evaluate(canvas=>canvas.toDataURL().length>20000),'Actual WebGL scene is rendered');
   await expect(page.locator('#open-export')).toBeEnabled();
   for(const width of [320,375,768,1440]){
     await page.setViewportSize({width,height:900});
     await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
     const box=await page.evaluate(()=>({width:document.documentElement.scrollWidth,view:document.documentElement.clientWidth}));
     assert.ok(box.width<=box.view+1,'Responsive width '+width+': '+JSON.stringify(box));
-    const canvas=await page.locator('#viewport canvas').boundingBox();assert.ok(canvas.width>200&&canvas.height>=350,'Usable 3D view at '+width);
+    const canvas=await page.locator('#viewport > canvas[role="img"]').boundingBox();assert.ok(canvas.width>200&&canvas.height>=350,'Usable 3D view at '+width);
     await page.locator('#open-settings').focus();await page.keyboard.press('Tab');await expect(page.locator(width<=980?'#camera-view':'.sidebar .panel:first-child > summary')).toBeFocused();
   }
   await page.setViewportSize({width:1440,height:1000});

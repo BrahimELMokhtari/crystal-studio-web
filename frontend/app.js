@@ -1,6 +1,7 @@
 import './style.css';
 import examples from './examples.json';
 import { CrystalViewer } from './viewer.js';
+import { paintLegendBall } from './legend.js';
 import { validateStructure, validateProject, measureAtoms, exportDimensions, pngWithDpi } from './model.js';
 
 const $ = selector => document.querySelector(selector);
@@ -79,8 +80,8 @@ function render(reset = false) {
     const color = s.colors[element.symbol] || element.color, row=node('label',undefined,'element-control'),input=document.createElement('input');
     input.type='color';input.value=color;input.setAttribute('aria-label',element.symbol+' color');input.className='element-swatch';
     row.append(input,node('strong',element.symbol,'element-name'),node('span',element.count.toLocaleString()+' atoms','element-count'));
-    input.oninput=()=>{state.settings.colors[element.symbol]=input.value; viewer?.setStructure(state.view,state.settings); const dot=legend.querySelector('[data-element="'+element.symbol+'"]'); if(dot)dot.style.backgroundColor=input.value;};
-    palette.append(row); const item=node('span',undefined,'legend-item'),dot=node('i',undefined,'legend-dot');dot.dataset.element=element.symbol;dot.style.backgroundColor=color;item.append(dot,node('span',element.symbol));legend.append(item);
+    input.oninput=()=>{state.settings.colors[element.symbol]=input.value; viewer?.setStructure(state.view,state.settings); const ball=legend.querySelector('[data-element="'+element.symbol+'"]'); if(ball)paintLegendBall(ball,input.value);};
+    palette.append(row); const item=node('span',undefined,'legend-item'),ball=node('canvas',undefined,'legend-ball');ball.dataset.element=element.symbol;ball.setAttribute('aria-hidden','true');paintLegendBall(ball,color);item.append(ball,node('span',element.symbol));legend.append(item);
   }
   renderAtoms(); renderMeasurements(); viewer?.setStructure(m,s,reset); viewer?.highlight(state.selection); controlsBusy();
 }
