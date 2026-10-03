@@ -1,10 +1,18 @@
+import { ELEMENT_DATA } from './element-data.js';
+
 export const MAX_ATOMS = 2000;
+export const MAX_EXPORT_DPI = 5000;
 export const MAX_EXPORT_PIXELS = 32000000;
 export const MAX_MANUAL_BONDS = 2000;
 export const finite = value => typeof value === 'number' && Number.isFinite(value);
 export const norm = a => Math.hypot(...a);
 export const subtract = (a, b) => a.map((v, i) => v - b[i]);
 export const fractionalToCartesian = (f, cell) => [0, 1, 2].map(k => f.reduce((sum, v, j) => sum + v * cell[j][k], 0));
+export function atomRenderRadius(atom, settings, {ghost=false, selected=false}={}) {
+  const elementScale = settings.elementScales?.[atom.element] ?? 1;
+  const base = ghost ? atom.covalentRadius * .26 : settings.representation === 'spacefill' ? atom.vdwRadius : atom.covalentRadius * (settings.representation === 'spheres' ? .65 : .32);
+  return base * (settings.atomScale ?? 1) * elementScale * (selected ? 1.08 : 1);
+}
 export function cellEdges(cell) {
   const corners = [[0,0,0],[1,0,0],[0,1,0],[0,0,1],[1,1,0],[1,0,1],[0,1,1],[1,1,1]].map(f => fractionalToCartesian(f, cell));
   return [[0,1],[0,2],[0,3],[1,4],[1,5],[2,4],[2,6],[3,5],[3,6],[4,7],[5,7],[6,7]].map(([i,j]) => [corners[i],corners[j]]);
@@ -100,6 +108,7 @@ export function validateProject(value) {
   if (!s || !['ball-stick','spheres','spacefill','bonds'].includes(s.representation) || !finite(s.atomScale) || s.atomScale < .4 || s.atomScale > 2 || !finite(s.bondScale) || s.bondScale < .6 || s.bondScale > 1.8 || !Array.isArray(s.repetitions) || s.repetitions.length !== 3 || !s.repetitions.every(n => Number.isInteger(n) && n >= 1 && n <= 4) || !['dark','light'].includes(s.background)) throw new Error('Invalid project display settings.');
   for (const key of ['showCell','showAxes','showPeriodic','showLegend']) if (typeof s[key] !== 'boolean') throw new Error('Invalid project visibility settings.');
   if (!s.colors || Object.keys(s.colors).length > 118 || !Object.entries(s.colors).every(([element,color]) => /^[A-Z][a-z]?$/.test(element) && /^#[0-9a-f]{6}$/i.test(color))) throw new Error('Invalid project colors.');
+  if (s.elementScales !== undefined && (!s.elementScales || typeof s.elementScales !== 'object' || Array.isArray(s.elementScales) || Object.keys(s.elementScales).length > 118 || !Object.entries(s.elementScales).every(([element,scale]) => Object.hasOwn(ELEMENT_DATA,element) && finite(scale) && scale >= .2 && scale <= 3))) throw new Error('Element sizes must map recognized element symbols to finite scales from 0.2 to 3.');
   if (s.connectionMode !== undefined && !['automatic','manual','both'].includes(s.connectionMode)) throw new Error('Invalid project connection mode.');
   validateCustomBonds(s.customBonds === undefined ? [] : s.customBonds, value.view);
   getDisplayBonds(value.view, s);
@@ -119,7 +128,7 @@ export function validateProject(value) {
   return value;
 }
 export function exportDimensions(widthCm, heightCm, dpi, limit = 8192) {
-  if (![widthCm,heightCm,dpi].every(finite) || widthCm < 1 || widthCm > 30 || heightCm < 1 || heightCm > 30 || !Number.isInteger(dpi) || dpi < 72 || dpi > 2400) throw new Error('Use dimensions from 1–30 cm and an integer resolution from 72–2,400 DPI.');
+  if (![widthCm,heightCm,dpi].every(finite) || widthCm < 1 || widthCm > 30 || heightCm < 1 || heightCm > 30 || !Number.isInteger(dpi) || dpi < 72 || dpi > MAX_EXPORT_DPI) throw new Error('Use dimensions from 1–30 cm and an integer resolution from 72–5,000 DPI.');
   const width = Math.round(widthCm * dpi / 2.54), height = Math.round(heightCm * dpi / 2.54);
   if (Math.max(width,height) > limit) throw new Error('This device supports exports up to ' + limit.toLocaleString() + ' pixels per side. Reduce the size or DPI.');
   if (width * height > MAX_EXPORT_PIXELS) throw new Error('Exports support up to 32 million pixels. Reduce the figure size or DPI.');
@@ -128,7 +137,7 @@ export function exportDimensions(widthCm, heightCm, dpi, limit = 8192) {
 const crcTable = new Uint32Array(256).map((_,n) => { for (let i=0;i<8;i++) n=n&1?0xedb88320^(n>>>1):n>>>1; return n>>>0; });
 function crc(bytes) { let n=0xffffffff; for(const v of bytes) n=crcTable[(n^v)&255]^(n>>>8); return (n^0xffffffff)>>>0; }
 export function pngWithDpi(bytes, dpi) {
-  if (!Number.isInteger(dpi) || dpi < 72 || dpi > 2400 || bytes.length < 33 || ![137,80,78,71,13,10,26,10].every((n,i) => bytes[i]===n)) throw new Error('Invalid PNG or resolution.');
+  if (!Number.isInteger(dpi) || dpi < 72 || dpi > MAX_EXPORT_DPI || bytes.length < 33 || ![137,80,78,71,13,10,26,10].every((n,i) => bytes[i]===n)) throw new Error('Invalid PNG or resolution.');
   const chunk = new Uint8Array(21), view = new DataView(chunk.buffer), ppm = Math.round(dpi/.0254);
   view.setUint32(0,9); chunk.set([112,72,89,115],4); view.setUint32(8,ppm); view.setUint32(12,ppm); chunk[16]=1; view.setUint32(17,crc(chunk.slice(4,17)));
   const chunks = [bytes.slice(0,8)], source = new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);

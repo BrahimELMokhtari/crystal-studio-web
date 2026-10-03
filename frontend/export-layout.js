@@ -1,4 +1,6 @@
 // Physical export layout, independent of WebGL and the live camera.
+import { MAX_EXPORT_DPI } from './model.js';
+
 export const EXPORT_SIDE_CAP = 8192;
 export const EXPORT_PIXEL_CAP = 32_000_000;
 
@@ -10,8 +12,8 @@ export function validateCaptureSize(width, height, dpi, limit = EXPORT_SIDE_CAP)
   if (width * height > EXPORT_PIXEL_CAP) {
     throw new Error('Exports support up to 32 million pixels. Reduce the figure size or DPI.');
   }
-  if (!Number.isInteger(dpi) || dpi < 72 || dpi > 2400) {
-    throw new Error('Use an integer resolution from 72 to 2,400 DPI.');
+  if (!Number.isInteger(dpi) || dpi < 72 || dpi > MAX_EXPORT_DPI) {
+    throw new Error('Use an integer resolution from 72 to 5,000 DPI.');
   }
 }
 

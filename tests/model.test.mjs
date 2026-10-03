@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cellEdges, fractionalToCartesian, measureAtoms, validateStructure, validateProject, exportDimensions, pngWithDpi } from '../frontend/model.js';
+import { cellEdges, fractionalToCartesian, measureAtoms, validateStructure, validateProject, exportDimensions, pngWithDpi, MAX_EXPORT_DPI } from '../frontend/model.js';
 function structure() {
   return {schemaVersion:1,name:'Periodic hydrogen example',formula:'H2',cell:{vectors:[[10,0,0],[0,10,0],[0,0,10]],lengths:[10,10,10],angles:[90,90,90],volume:1000,periodic:true},atoms:[{id:0,element:'H',fractional:[.01,0,0],position:[.1,0,0],covalentRadius:.31,vdwRadius:1.2,occupancy:1},{id:1,element:'H',fractional:[.99,0,0],position:[9.9,0,0],covalentRadius:.31,vdwRadius:1.2,occupancy:1}],bonds:[{i:0,j:1,shift:[-1,0,0],start:[.1,0,0],end:[-.1,0,0],distance:.2}],elements:[{symbol:'H',count:2,color:'#ffffff'}],source:{filename:'example',format:'example',description:'Synthetic periodic regression example.'},warnings:[]};
 }
@@ -40,4 +40,29 @@ test('PNG embeds a single physical-resolution chunk in pixels per metre',()=>{
   const png=pngWithDpi(pngWithDpi(bytes,300),600),view=new DataView(png.buffer);let count=0;
   for(let offset=8;offset<png.length;){const length=view.getUint32(offset);if(Buffer.from(png.slice(offset+4,offset+8)).toString()==='pHYs'){count++;assert.equal(length,9);assert.equal(view.getUint32(offset+8),Math.round(600/.0254));assert.equal(view.getUint32(offset+12),Math.round(600/.0254));assert.equal(png[offset+16],1);}offset+=length+12;}
   assert.equal(count,1);assert.throws(()=>pngWithDpi(bytes,0));
+});
+
+test('5000 DPI dimensions retain exact physical sizing and genuine device and pixel limits',()=>{
+  assert.equal(MAX_EXPORT_DPI,5000);
+  assert.deepEqual(exportDimensions(2,2,5000),{width:3937,height:3937,widthCm:2,heightCm:2,dpi:5000});
+  assert.equal(exportDimensions(2,2,5000,4096).width,3937);
+  assert.throws(()=>exportDimensions(2,2,5000,2048),/device.*limit|supports exports/);
+  assert.throws(()=>exportDimensions(3,3,5000),/32 million/);
+  assert.throws(()=>exportDimensions(5,1,5000),/supports exports/);
+  for(const dpi of [5001,5000.5,NaN,Infinity,'5000',71]) assert.throws(()=>exportDimensions(1,1,dpi),/5,000 DPI/);
+});
+
+test('5000 DPI PNG metadata replaces previous resolution once without changing image bytes',()=>{
+  const original=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aV8sAAAAASUVORK5CYII=','base64');
+  const output=pngWithDpi(pngWithDpi(original,600),5000);
+  function chunks(bytes) {
+    const view=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength),result=[];
+    for(let offset=8;offset<bytes.length;){const length=view.getUint32(offset),name=String.fromCharCode(...bytes.subarray(offset+4,offset+8));result.push({name,data:bytes.slice(offset+8,offset+8+length)});offset+=length+12;}
+    return result;
+  }
+  const physical=chunks(output).filter(chunk=>chunk.name==='pHYs');assert.equal(physical.length,1);
+  const data=new DataView(physical[0].data.buffer);assert.equal(data.getUint32(0),196850);assert.equal(data.getUint32(4),196850);assert.equal(data.getUint8(8),1);
+  const imageData=chunks(original).filter(chunk=>chunk.name!=='pHYs');
+  assert.deepEqual(chunks(output).filter(chunk=>chunk.name!=='pHYs').map(chunk=>({name:chunk.name,data:Buffer.from(chunk.data)})),imageData.map(chunk=>({name:chunk.name,data:Buffer.from(chunk.data)})));
+  for(const dpi of [5001,5000.5,NaN,Infinity,'5000',71]) assert.throws(()=>pngWithDpi(original,dpi),/resolution/);
 });

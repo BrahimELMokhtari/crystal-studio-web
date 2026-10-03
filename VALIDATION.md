@@ -1,4 +1,17 @@
-# Version 1.1 validation
+# Version 1.2 validation
+
+Checked on 3 October 2026. This release adds direct mouse connections, independent element sizes and genuine 5,000 DPI browser exports. The Python API is unchanged.
+
+- **44 JavaScript tests passed:** the previous geometry/connection/project checks plus element radius scaling, independent factors for all 118 element symbols, selection and periodic ghost sizes, legacy project defaults, invalid factors, 5,000 DPI bounds and PNG physical-resolution metadata.
+- **Actual mouse interaction passed:** dragging atom-to-atom and clicking two atoms produce the intended direct manual links. Duplicate/reversed links and self-links are prevented. Escape, empty clicks/drops and pointer cancellation discard unfinished connections. Normal camera orbit remains available and cancellation restores it.
+- **Actual sphere pixels checked:** hydrogen grows while oxygen stays unchanged, oxygen can then shrink independently, and the global multiplier composes with both. The controls, stored settings and rendered radii survive project saving and loading. Legacy projects without element scales use 1.00. Numeric input preserves values with more than two decimals rather than displaying a rounded value that differs from the stored setting.
+- **5,000 DPI image verified:** a transparent 2.5 cm square PNG is 4,921 x 4,921 pixels. Its single pHYs chunk has a valid CRC and 196,850 pixels/metre in both directions, which represents 5,000 DPI within integer metadata rounding. The final alpha edges preserve the 1 cm legend spacing within one output pixel, including compositing/antialiasing rounding. Clear corners, content margins, original camera and display settings are checked.
+- **Size fitting checked:** 5,001 DPI and figures exceeding the device/8,192-side/32-million-pixel bounds are rejected. Fit size to device reduces the physical dimensions while keeping 5,000 DPI selected. On the tested device, an 8 cm square request fits to 2.8 cm square.
+- **Regression and build checks passed:** the prior browser import, manual entry, connection persistence, responsive square scene, transparency, PNG/PDF, calculation and supercell checks all pass. Sixteen additional real WebGL captures cover four representations and camera directions with per-element scales, cell edges, axes, periodic images and selection outlines. The production build and GitHub Pages repository path work.
+
+The native Playwright test `tests/mouse-and-sizing.py` creates synthetic input locally and requires no Python service. It accepts `--url` for a built or deployed frontend. Browser downloads/screenshots/reports are excluded from publishing. The preceding Python validation remains recorded below; no backend source or dependency changed in version 1.2.
+
+## Previous version 1.1 validation
 
 Checked on 3 October 2026 with Python 3.14.7, Node.js 24.21.0 and installed Google Chrome on Windows. Browser checks use the real WebGL viewer and the real local FastAPI service.
 

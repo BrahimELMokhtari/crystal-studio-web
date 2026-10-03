@@ -2,17 +2,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { validateCaptureSize, physicalGapPixels, fitExportFrame, scanAlphaBounds, alignRasterBounds } from '../frontend/export-layout.js';
 import { layoutElementLegend } from '../frontend/legend.js';
+import { exportDimensions, MAX_EXPORT_DPI } from '../frontend/model.js';
 
 const box = (left, top, right, bottom) => ({ left, top, right, bottom, width: right - left + 1, height: bottom - top + 1 });
 
 test('physical spacing is quantized to the nearest pixel and aligned at export DPI', () => {
-  for (const dpi of [300, 600, 1200, 2400]) {
+  for (const dpi of [300, 600, 1200, 2400, 5000]) {
     const gapPixels = physicalGapPixels(dpi, 1);
     assert.ok(Math.abs(gapPixels - dpi / 2.54) <= 0.5);
     const legendBounds = box(10, 10, 35, 80);
-    const aligned = alignRasterBounds({ legendBounds, atomBounds: box(80, 50, 240, 250), sceneBounds: box(65, 35, 260, 260), gapPixels, width: 1600, height: 1600 });
+    const aligned = alignRasterBounds({ legendBounds, atomBounds: box(80, 50, 240, 250), sceneBounds: box(65, 35, 260, 260), gapPixels, width: 3000, height: 3000 });
     assert.equal(aligned.atomBounds.left - legendBounds.right - 1, gapPixels);
-    assert.ok(aligned.sceneBounds.right < 1600);
+    assert.ok(aligned.sceneBounds.right < 3000);
     assert.equal(aligned.gapReference, 'atoms');
   }
 });
@@ -76,4 +77,15 @@ test('bonds-only exports use visible geometry and refuse an overlapping translat
   assert.equal(aligned.referenceBounds.left - legendBounds.right - 1, 118);
   assert.equal(aligned.gapReference, 'visible-geometry');
   assert.throws(() => alignRasterBounds({ legendBounds, atomBounds: box(100, 50, 200, 150), sceneBounds: box(0, 30, 230, 190), gapPixels: 10, width: 500, height: 500 }));
+});
+
+test('capture accepts5000 DPI within actual side and total-pixel bounds',()=>{
+  const dimensions=exportDimensions(2,2,MAX_EXPORT_DPI);
+  assert.equal(MAX_EXPORT_DPI,5000);
+  assert.doesNotThrow(()=>validateCaptureSize(dimensions.width,dimensions.height,5000,4096));
+  assert.throws(()=>validateCaptureSize(dimensions.width,dimensions.height,5000,2048),/device/);
+  assert.throws(()=>validateCaptureSize(6000,6000,5000,8192),/32 million/);
+  assert.throws(()=>validateCaptureSize(9000,100,5000,8192),/device/);
+  for(const dpi of [5001,5000.5,NaN,Infinity,'5000',71]) assert.throws(()=>validateCaptureSize(100,100,dpi),/5,000 DPI/);
+  assert.equal(physicalGapPixels(5000,1),1969);
 });

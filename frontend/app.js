@@ -2,7 +2,7 @@ import './style.css';
 import examples from './examples.json';
 import { CrystalViewer } from './viewer.js';
 import { paintLegendBall } from './legend.js';
-import { validateStructure, validateProject, measureAtoms, exportDimensions, pngWithDpi, getDisplayBonds, remapCustomBonds } from './model.js';
+import { validateStructure, validateProject, measureAtoms, exportDimensions, pngWithDpi, getDisplayBonds, remapCustomBonds, MAX_EXPORT_DPI, MAX_EXPORT_PIXELS } from './model.js';
 import { buildManualStructure, parseManualAtomRows } from './manual.js';
 
 const $ = selector => document.querySelector(selector);
@@ -10,9 +10,9 @@ const compactLayout=matchMedia('(max-width: 980px)');
 function orderWorkspace(){const workspace=$('#workspace'),first=compactLayout.matches?$('.viewer-column'):$('.sidebar');if(workspace.firstElementChild===first)return;const active=document.activeElement;workspace.prepend(first);if(active instanceof HTMLElement&&active!==document.body)active.focus({preventScroll:true});}
 compactLayout.addEventListener('change',orderWorkspace);orderWorkspace();
 const node = (tag, text, className) => { const n = document.createElement(tag); if (text !== undefined) n.textContent = text; if (className) n.className = className; return n; };
-const initialSettings = () => ({ representation: 'ball-stick', atomScale: 1, bondScale: 1.1, showCell: true, showAxes: true, showPeriodic: true, showLegend: true, background: 'dark', colors: {}, repetitions: [1,1,1], connectionMode: 'automatic', customBonds: [] });
+const initialSettings = () => ({ representation: 'ball-stick', atomScale: 1, elementScales: {}, bondScale: 1.1, showCell: true, showAxes: true, showPeriodic: true, showLegend: true, background: 'dark', colors: {}, repetitions: [1,1,1], connectionMode: 'automatic', customBonds: [] });
 const state = { unit: null, view: null, settings: initialSettings(), selection: [], generation: 0, applied: { bondScale: 1.1, repetitions: [1,1,1] } };
-let viewer, controller, debounce, requestBusy = false, exportBusy = false, apiBase = '';
+let viewer, controller, debounce, requestBusy = false, exportBusy = false, mouseConnectMode = false, apiBase = '';
 const say = message => { $('#status').textContent = message; };
 function storageRead() { try { return localStorage.getItem('crystal-studio-api-url'); } catch { return null; } }
 function normalizeApi(value) {
@@ -30,6 +30,14 @@ function controlsBusy() {
   $('#connect-selected').disabled = requestBusy || exportBusy || state.selection.length !== 2 || pair !== undefined;
   $('#disconnect-selected').disabled = requestBusy || exportBusy || pair === undefined;
   $('#manual-submit').disabled = exportBusy;
+  const mouseEnabled = mouseConnectMode && !requestBusy && !exportBusy && !!state.view && !!viewer;
+  $('#mouse-connect-mode').disabled = requestBusy || exportBusy || !state.view || !viewer;
+  $('#mouse-connect-mode').setAttribute('aria-pressed',String(mouseEnabled));
+  $('#mouse-connect-mode').textContent = mouseEnabled ? 'Mouse connections on' : 'Connect with mouse';
+  $('#mouse-connect-hint').hidden = !mouseEnabled;
+  $('#viewport').classList.toggle('connecting',mouseEnabled);
+  $('#viewport-help').textContent = mouseEnabled ? 'Drag atom to atom or click two atoms to connect; Esc cancels. Drag empty space to rotate.' : 'Drag to rotate; scroll to zoom; right-drag to pan; click atoms to inspect';
+  viewer?.setConnectionMode(mouseEnabled);
 }
 function busy(active, message = '') { requestBusy = active; $('#busy-overlay').hidden = !active; $('#busy-message').textContent = message; controlsBusy(); }
 function serviceLabel(message) { $('#service-state').textContent = message || (apiBase ? 'Python service configured' : 'Configure Python service'); }
@@ -69,7 +77,7 @@ $('#test-service').onclick = async () => {
   catch (error) { $('#service-result').textContent = error.message; } finally { button.disabled = false; }
 };
 function acceptUnit(unit) {
-  validateStructure(unit); controller?.abort(); state.generation++; busy(false); state.unit = unit; state.view = structuredClone(unit); state.selection = [];
+  validateStructure(unit); mouseConnectMode=false;viewer?.cancelConnectionGesture();controller?.abort(); state.generation++; busy(false); state.unit = unit; state.view = structuredClone(unit); state.selection = [];
   state.settings.bondScale = 1.1; state.settings.repetitions = [1,1,1]; state.applied = { bondScale: 1.1, repetitions: [1,1,1] };
   state.settings.customBonds = [];state.settings.connectionMode = unit.source.format === 'manual' ? 'manual' : 'automatic';
   syncControls(); render(true);
@@ -86,10 +94,28 @@ function render(reset = false) {
   $('#contact-count').textContent = getDisplayBonds(m,s).length.toLocaleString() + ' connections · ' + s.customBonds.length.toLocaleString() + ' manual' + (s.showPeriodic ? ' · faint spheres show periodic neighbors' : ' · periodic contacts hidden');
   const palette = $('#element-controls'); palette.replaceChildren(); const legend = $('#scene-legend'); legend.replaceChildren(); legend.hidden = !s.showLegend;
   for (const element of m.elements) {
-    const color = s.colors[element.symbol] || element.color, row=node('label',undefined,'element-control'),input=document.createElement('input');
+    const color = s.colors[element.symbol] || element.color, row=node('div',undefined,'element-control'),colorRow=node('label',undefined,'element-color-row'),input=document.createElement('input');
     input.type='color';input.value=color;input.setAttribute('aria-label',element.symbol+' color');input.className='element-swatch';
-    row.append(input,node('strong',element.symbol,'element-name'),node('span',element.count.toLocaleString()+' atoms','element-count'));
+    colorRow.append(input,node('strong',element.symbol,'element-name'),node('span',element.count.toLocaleString()+' atoms','element-count'));row.append(colorRow);
     input.oninput=()=>{state.settings.colors[element.symbol]=input.value; viewer?.setStructure(state.view,state.settings); const ball=legend.querySelector('[data-element="'+element.symbol+'"]'); if(ball)paintLegendBall(ball,input.value);};
+    const sizeControls=node('div',undefined,'element-size-controls'),sizeLabel=node('label',undefined,'element-size-label'),range=node('input'),number=node('input'),reset=node('button','Reset','element-size-reset');
+    range.type='range';number.type='number';
+    for(const control of [range,number]){control.min='.2';control.max='3';control.step='.01';control.value=String(s.elementScales?.[element.symbol]??1);}
+    number.step='any';
+    const formatSize=value=>Number(value.toFixed(2))===value?value.toFixed(2):String(value);
+    range.setAttribute('aria-label',element.symbol+' size');number.setAttribute('aria-label',element.symbol+' size multiplier');
+    const applySize=(raw,source)=>{
+      const value=Number(raw);
+      if(raw.trim()===''||!Number.isFinite(value)||value<.2||value>3){source?.setAttribute('aria-invalid','true');return;}
+      state.settings={...state.settings,elementScales:{...state.settings.elementScales,[element.symbol]:value}};
+      range.value=String(value);if(source!==number)number.value=formatSize(value);number.removeAttribute('aria-invalid');
+      viewer?.setStructure(state.view,state.settings);viewer?.highlight(state.selection);
+    };
+    range.oninput=()=>applySize(range.value,range);number.oninput=()=>applySize(number.value,number);
+    number.onchange=()=>{applySize(number.value,number);number.value=formatSize(state.settings.elementScales?.[element.symbol]??1);number.removeAttribute('aria-invalid');};
+    reset.type='button';reset.setAttribute('aria-label','Reset '+element.symbol+' size');reset.onclick=()=>applySize('1');
+    number.value=formatSize(s.elementScales?.[element.symbol]??1);
+    sizeLabel.append(node('span','Size multiplier','element-size-caption'),range);sizeControls.append(sizeLabel,number,reset);row.append(sizeControls);
     palette.append(row); const item=node('span',undefined,'legend-item'),ball=node('canvas',undefined,'legend-ball');ball.dataset.element=element.symbol;ball.setAttribute('aria-hidden','true');paintLegendBall(ball,color);item.append(ball,node('span',element.symbol));legend.append(item);
   }
   renderAtoms(); renderMeasurements();renderConnections(); viewer?.setStructure(m,s,reset); viewer?.highlight(state.selection); controlsBusy();
@@ -123,13 +149,20 @@ function renderConnections() {
   }
   if(state.settings.customBonds.length>100)target.append(node('p','Showing the first 100 of '+state.settings.customBonds.length+' manual connections.','field-help'));
 }
-$('#connect-selected').onclick=()=>{
-  if(state.selection.length!==2)return;
-  const [i,j]=state.selection,previous=state.settings;
+function connectAtoms(i,j) {
+  if(requestBusy||exportBusy||!state.view||i===j)return false;
+  const previous=state.settings;
   try {
-    state.settings={...previous,customBonds:[...previous.customBonds,{i:Math.min(i,j),j:Math.max(i,j),shift:[0,0,0]}],connectionMode:previous.connectionMode==='automatic'?'both':previous.connectionMode,representation:['spheres','spacefill'].includes(previous.representation)?'ball-stick':previous.representation};
-    getDisplayBonds(state.view,state.settings);syncControls();render();say('Selected atoms connected. Manual connections are included in figures and saved projects.');
-  }catch(error){state.settings=previous;syncControls();say(error.message);}
+    if(previous.customBonds.some(bond=>[bond.i,bond.j].includes(i)&&[bond.i,bond.j].includes(j))){say('These atoms already have a manual connection.');return false;}
+    const settings={...previous,customBonds:[...previous.customBonds,{i:Math.min(i,j),j:Math.max(i,j),shift:[0,0,0]}],connectionMode:previous.connectionMode==='automatic'?'both':previous.connectionMode,representation:['spheres','spacefill'].includes(previous.representation)?'ball-stick':previous.representation};
+    getDisplayBonds(state.view,settings);state.settings=settings;state.selection=[i,j];syncControls();render();say('Atoms connected. Manual connections are included in figures and saved projects.');return true;
+  }catch(error){syncControls();say(error.message);return false;}
+}
+$('#connect-selected').onclick=()=>{if(state.selection.length===2)connectAtoms(...state.selection);};
+$('#mouse-connect-mode').onclick=()=>{
+  mouseConnectMode=!mouseConnectMode;
+  if(mouseConnectMode&&state.settings.representation==='bonds')updateDisplaySettings({representation:'ball-stick'});
+  controlsBusy();say(mouseConnectMode?'Mouse connections enabled. Drag between atoms or click two atoms to connect.':'Mouse connections disabled. Drag to rotate the crystal.');
 };
 $('#disconnect-selected').onclick=()=>{const bond=selectedConnection();if(!bond)return;state.settings.customBonds=state.settings.customBonds.filter(item=>item!==bond);render();say('Manual connection removed.');};
 function updateDisplaySettings(patch) {
@@ -147,7 +180,7 @@ function renderMeasurements() {
   const pair=state.view.bonds.filter(b=>(b.i===atoms[0].id&&b.j===atoms[1].id)||(b.j===atoms[0].id&&b.i===atoms[1].id));
   if(pair.length){target.append(node('p','Periodic contact records · shifts follow your selection order','field-help'));for(const contact of pair.slice(0,12)){const shift=contact.i===atoms[0].id?contact.shift:contact.shift.map(n=>-n);target.append(node('p',contact.distance.toFixed(5)+' Å · image shift ['+shift.join(', ')+']'));}if(pair.length>12)target.append(node('p','Showing 12 of '+pair.length+' contact images.'));}
 }
-$('#clear-selection').onclick=()=>{state.selection=[];viewer?.highlight([]);renderAtoms();renderMeasurements();renderConnections();controlsBusy();};
+$('#clear-selection').onclick=()=>{viewer?.cancelConnectionGesture();state.selection=[];viewer?.highlight([]);renderAtoms();renderMeasurements();renderConnections();controlsBusy();};
 $('#atom-filter').oninput=renderAtoms;$('#coordinate-mode').onchange=renderAtoms;
 const tabs=[...document.querySelectorAll('[role="tab"]')];
 function activateTab(tab){for(const button of tabs){const selected=button===tab;button.setAttribute('aria-selected',String(selected));button.tabIndex=selected?0:-1;$('#'+button.getAttribute('aria-controls')).hidden=!selected;}}
@@ -222,12 +255,35 @@ $('#project-file').onchange=async event=>{
     if(file.size>8*1024*1024)throw new Error('The project exceeds the 8 MB limit.');
     const text=await file.text();if(generation!==state.generation)return;
     const project=validateProject(JSON.parse(text));
+    mouseConnectMode=false;viewer?.cancelConnectionGesture();
     state.unit=project.unit;state.view=project.view;state.settings={...initialSettings(),...project.settings};state.applied={bondScale:project.settings.bondScale,repetitions:[...project.settings.repetitions]};state.selection=[];syncControls();render(true);viewer?.restoreCamera(project.camera);say('Project restored.');
   }catch(error){if(generation===state.generation)say('Unable to load project: '+error.message);}
 };
 for(const example of examples){const option=node('option',example.label);option.value=example.id;$('#example-select').append(option);}
 $('#example-select').onchange=()=>{const selected=examples.find(e=>e.id===$('#example-select').value);if(selected){clearTimeout(debounce);acceptUnit(structuredClone(selected.structure));say('Loaded '+selected.label+'. This is an idealized example structure.');}};
-function exportSummary() {try{const dims=exportDimensions(Number($('#export-width').value),Number($('#export-height').value),Number($('#export-dpi').value),viewer?.exportLimit()||8192);$('#export-summary').textContent=dims.width.toLocaleString()+' × '+dims.height.toLocaleString()+' px · '+dims.widthCm+' × '+dims.heightCm+' cm · '+dims.dpi+' DPI';$('#export-error').hidden=true;$('#export-submit').disabled=false;}catch(error){$('#export-summary').textContent='Adjust the figure dimensions or resolution.';$('#export-error').textContent=error.message;$('#export-error').hidden=false;$('#export-submit').disabled=true;}}
+function exportSummary() {
+  const widthCm=Number($('#export-width').value),heightCm=Number($('#export-height').value),dpi=Number($('#export-dpi').value),limit=viewer?.exportLimit()||8192;
+  $('#fit-export-size').hidden=true;
+  try{
+    const dims=exportDimensions(widthCm,heightCm,dpi,limit);
+    $('#export-summary').textContent=dims.width.toLocaleString()+' × '+dims.height.toLocaleString()+' px · '+dims.widthCm+' × '+dims.heightCm+' cm · '+dims.dpi+' DPI';$('#export-error').hidden=true;$('#export-submit').disabled=false;
+  }catch(error){
+    const validInputs=[widthCm,heightCm].every(n=>Number.isFinite(n)&&n>=1&&n<=30)&&Number.isInteger(dpi)&&dpi>=72&&dpi<=MAX_EXPORT_DPI;
+    const squareCm=Math.floor(Math.min(30,Math.min(limit,Math.sqrt(MAX_EXPORT_PIXELS))*2.54/dpi)*10)/10;
+    $('#export-summary').textContent='Adjust the figure dimensions or resolution.';
+    $('#export-error').textContent=error.message+(validInputs?' A square figure at '+dpi.toLocaleString()+' DPI can be up to '+squareCm.toFixed(1)+' cm per side on this device.':'');
+    $('#export-error').hidden=false;$('#export-submit').disabled=true;$('#fit-export-size').hidden=!validInputs;
+  }
+}
+$('#fit-export-size').onclick=()=>{
+  const widthCm=Number($('#export-width').value),heightCm=Number($('#export-height').value),dpi=Number($('#export-dpi').value),limit=viewer?.exportLimit()||8192;
+  if(![widthCm,heightCm].every(n=>Number.isFinite(n)&&n>=1&&n<=30)||!Number.isInteger(dpi)||dpi<72||dpi>MAX_EXPORT_DPI)return;
+  const width=Math.round(widthCm*dpi/2.54),height=Math.round(heightCm*dpi/2.54);
+  const scale=Math.min(1,limit/width,limit/height,Math.sqrt(MAX_EXPORT_PIXELS/(width*height)));
+  $('#export-width').value=Math.max(1,Math.floor(widthCm*scale*10)/10).toFixed(1);
+  $('#export-height').value=Math.max(1,Math.floor(heightCm*scale*10)/10).toFixed(1);
+  exportSummary();
+};
 for(const id of ['export-width','export-height','export-dpi'])$('#'+id).oninput=exportSummary;
 $('#open-export').onclick=()=>{if(!viewer||!state.view)return;exportSummary();$('#export-dialog').showModal();};
 $('#export-form').onsubmit=async event=>{
@@ -238,5 +294,5 @@ $('#export-form').onsubmit=async event=>{
     $('#export-dialog').close();say('Figure exported at '+dims.width+' × '+dims.height+' pixels and '+dims.dpi+' DPI.');
   }catch(error){$('#export-error').textContent=error.message;$('#export-error').hidden=false;}finally{exportBusy=false;controlsBusy();$('#export-submit').disabled=false;}
 };
-try { viewer=new CrystalViewer($('#viewport'),selectAtom); } catch(error) { $('#webgl-error').hidden=false;$('#webgl-error').textContent='The 3D viewer requires WebGL 2. Structure data and atom tables remain available. '+error.message; }
+try { viewer=new CrystalViewer($('#viewport'),selectAtom,connectAtoms); } catch(error) { $('#webgl-error').hidden=false;$('#webgl-error').textContent='The 3D viewer requires WebGL 2. Structure data and atom tables remain available. '+error.message; }
 if(examples.length){$('#example-select').value=examples[0].id;acceptUnit(structuredClone(examples[0].structure));say('Ready. Explore the example, or open your own structure.');}else{say('Example structures are being prepared. Connect your Python service and open a CIF file.');controlsBusy();}
