@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { cellEdges } from './model.js';
+import { cellEdges, getDisplayBonds } from './model.js';
 import { layoutElementLegend, drawElementLegend } from './legend.js';
+import { EXPORT_SIDE_CAP, validateCaptureSize, physicalGapPixels, fitExportFrame, scanAlphaBounds, alignRasterBounds } from './export-layout.js';
 
 export class CrystalViewer {
   constructor(container, onSelect) {
@@ -49,13 +50,13 @@ export class CrystalViewer {
     if(s.representation!=='bonds') {
       for(const element of m.elements) {
         const atoms=m.atoms.filter(a=>a.element===element.symbol),material=new THREE.MeshPhongMaterial({ color:s.colors[element.symbol]||element.color,shininess:65,specular:0x6b7779 });
-        const mesh=new THREE.InstancedMesh(this.sphereGeometry,material,atoms.length); mesh.userData.ids=atoms.map(a=>a.id);
+        const mesh=new THREE.InstancedMesh(this.sphereGeometry,material,atoms.length); mesh.userData.ids=atoms.map(a=>a.id);mesh.userData.exportAtom=true;
         atoms.forEach((atom,index)=>{ const radius=(s.representation==='spacefill'?atom.vdwRadius:atom.covalentRadius*(s.representation==='spheres'?.65:.32))*s.atomScale; matrix.compose(new THREE.Vector3(...atom.position),quaternion,new THREE.Vector3(radius,radius,radius)); mesh.setMatrixAt(index,matrix); });
         mesh.computeBoundingSphere();this.group.add(mesh);this.pickable.push(mesh);
       }
     }
     if(!['spheres','spacefill'].includes(s.representation)) {
-      const bonds=m.bonds.filter(b=>s.showPeriodic||b.shift.every(n=>n===0));
+      const bonds=getDisplayBonds(m,s);
       const material=new THREE.MeshPhongMaterial({color:s.background==='light'?0x809295:0x7dabb0,shininess:30});
       if(bonds.length) {
         const mesh=new THREE.InstancedMesh(this.cylinderGeometry,material,bonds.length),radius=s.representation==='bonds'?.055:.045;
@@ -65,7 +66,7 @@ export class CrystalViewer {
           const ghosts=new Map(); for(const b of bonds)if(b.shift.some(n=>n!==0))ghosts.set(b.end.map(n=>n.toFixed(5)).join(','),{p:b.end,atom:m.atoms[b.j]});
           for(const element of m.elements) {
             const entries=[...ghosts.values()].filter(g=>g.atom.element===element.symbol);if(!entries.length)continue;
-            const ghost=new THREE.InstancedMesh(this.sphereGeometry,new THREE.MeshPhongMaterial({color:s.colors[element.symbol]||element.color,transparent:true,opacity:.18,depthWrite:false}),entries.length);
+            const ghost=new THREE.InstancedMesh(this.sphereGeometry,new THREE.MeshPhongMaterial({color:s.colors[element.symbol]||element.color,transparent:true,opacity:.18,depthWrite:false}),entries.length);ghost.userData.exportAtom=true;
             entries.forEach((g,index)=>{quaternion.identity();const r=g.atom.covalentRadius*.26*s.atomScale;matrix.compose(new THREE.Vector3(...g.p),quaternion,new THREE.Vector3(r,r,r));ghost.setMatrixAt(index,matrix);});ghost.computeBoundingSphere();this.group.add(ghost);
           }
         }
@@ -85,7 +86,7 @@ export class CrystalViewer {
   highlight(ids) {
     this.selected=ids;if(!this.selectionGroup||!this.model)return;
     this.selectionGroup.traverse(n=>n.material?.dispose());this.selectionGroup.clear();
-    for(const id of ids){const atom=this.model.atoms[id];if(!atom)continue;const radius=(this.settings.representation==='spacefill'?atom.vdwRadius:atom.covalentRadius*(this.settings.representation==='spheres'?.65:.32))*this.settings.atomScale*1.08;const mesh=new THREE.Mesh(this.sphereGeometry,new THREE.MeshBasicMaterial({color:0xf1ca76,wireframe:true,transparent:true,opacity:.65}));mesh.position.set(...atom.position);mesh.scale.setScalar(radius);this.selectionGroup.add(mesh);}
+    for(const id of ids){const atom=this.model.atoms[id];if(!atom)continue;const radius=(this.settings.representation==='spacefill'?atom.vdwRadius:atom.covalentRadius*(this.settings.representation==='spheres'?.65:.32))*this.settings.atomScale*1.08;const mesh=new THREE.Mesh(this.sphereGeometry,new THREE.MeshBasicMaterial({color:0xf1ca76,wireframe:true,transparent:true,opacity:.65}));mesh.userData.exportAtom=true;mesh.position.set(...atom.position);mesh.scale.setScalar(radius);this.selectionGroup.add(mesh);}
   }
   fit(direction='isometric') {
     if(!this.model)return; const box=new THREE.Box3().setFromObject(this.group),center=box.getCenter(new THREE.Vector3()),span=box.getSize(new THREE.Vector3());
@@ -101,30 +102,135 @@ export class CrystalViewer {
   zoom(factor){this.camera.zoom=Math.max(.1,Math.min(30,this.camera.zoom*factor));this.camera.updateProjectionMatrix();}
   cameraState(){return {position:this.camera.position.toArray(),target:this.controls.target.toArray(),up:this.camera.up.toArray(),halfHeight:this.halfHeight||8,zoom:this.camera.zoom};}
   restoreCamera(state){if(!state)return;this.camera.position.set(...state.position);this.controls.target.set(...state.target);if(state.up)this.camera.up.set(...state.up);if(state.halfHeight)this.halfHeight=state.halfHeight;this.camera.zoom=state.zoom;this.camera.lookAt(this.controls.target);this.resize();this.controls.update();}
-  exportLimit(){const gl=this.renderer.getContext();return Math.min(4096,this.renderer.capabilities.maxTextureSize,gl.getParameter(gl.MAX_RENDERBUFFER_SIZE));}
-  capture({width,height,transparent,legend}) {
-    const renderer=this.renderer,camera=this.camera,size=renderer.getSize(new THREE.Vector2()),pixelRatio=renderer.getPixelRatio(),oldColor=renderer.getClearColor(new THREE.Color()),oldAlpha=renderer.getClearAlpha();
-    const frustum={left:camera.left,right:camera.right,top:camera.top,bottom:camera.bottom};
-    const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const ctx=canvas.getContext('2d');
-    const legendLayout=legend?layoutElementLegend(ctx,this.model.elements,width,height):{width:0};
-    const sceneWidth=width-legendLayout.width,aspect=sceneWidth/height;
-    const oldBackground=this.settings.background;let result;
-    try {
-      this.settings={...this.settings,background:'light'};this.build();
-      renderer.setPixelRatio(1);renderer.setSize(sceneWidth,height,false);renderer.setClearColor(0xffffff,transparent?0:1);
-      const half=Math.max((frustum.top-frustum.bottom)/2,(frustum.right-frustum.left)/2/aspect);camera.top=half;camera.bottom=-half;camera.left=-half*aspect;camera.right=half*aspect;camera.updateProjectionMatrix();
-      renderer.render(this.scene,camera);
-      if(!transparent){ctx.fillStyle='#ffffff';ctx.fillRect(0,0,width,height);}
-      ctx.drawImage(renderer.domElement,legendLayout.width,0);
-      if(legend) {
-        drawElementLegend(ctx,legendLayout,this.settings.colors);
-        ctx.save();ctx.beginPath();ctx.rect(legendLayout.width,0,sceneWidth,height);ctx.clip();ctx.font=Math.max(12,Math.round(Math.min(width,height)*.023))+'px system-ui';ctx.fillStyle='#213b40';
-        for(const axis of this.labels){const p=axis.position.clone().project(camera);if(p.z>=-1&&p.z<=1)ctx.fillText(axis.name,legendLayout.width+(p.x+1)*sceneWidth/2,(-p.y+1)*height/2);}
-        ctx.restore();
+  exportLimit() {
+    const gl=this.renderer.getContext(),viewport=gl.getParameter(gl.MAX_VIEWPORT_DIMS);
+    return Math.min(EXPORT_SIDE_CAP,this.renderer.capabilities.maxTextureSize,
+      gl.getParameter(gl.MAX_RENDERBUFFER_SIZE),viewport[0],viewport[1]);
+  }
+  projectedGeometryBounds(camera) {
+    this.group.updateMatrixWorld(true);camera.updateMatrixWorld(true);
+    const scene={minX:Infinity,maxX:-Infinity,minY:Infinity,maxY:-Infinity,minZ:Infinity,maxZ:-Infinity};
+    const atoms={...scene},point=new THREE.Vector3(),instance=new THREE.Matrix4(),matrix=new THREE.Matrix4();
+    const expand=(bounds,x,y,z,rx=0,ry=0,rz=0)=>{
+      bounds.minX=Math.min(bounds.minX,x-rx);bounds.maxX=Math.max(bounds.maxX,x+rx);
+      bounds.minY=Math.min(bounds.minY,y-ry);bounds.maxY=Math.max(bounds.maxY,y+ry);
+      bounds.minZ=Math.min(bounds.minZ,z-rz);bounds.maxZ=Math.max(bounds.maxZ,z+rz);
+    };
+    const add=(node,transform)=>{
+      const atom=!!node.userData.exportAtom;
+      if(node.geometry===this.sphereGeometry) {
+        point.set(0,0,0).applyMatrix4(transform);const e=transform.elements;
+        const rx=Math.hypot(e[0],e[4],e[8]),ry=Math.hypot(e[1],e[5],e[9]),rz=Math.hypot(e[2],e[6],e[10]);
+        expand(scene,point.x,point.y,point.z,rx,ry,rz);
+        if(atom)expand(atoms,point.x,point.y,point.z,rx,ry,rz);
+      } else {
+        if(!node.geometry.boundingBox)node.geometry.computeBoundingBox();
+        const box=node.geometry.boundingBox;if(!box||box.isEmpty())return;
+        for(const x of [box.min.x,box.max.x])for(const y of [box.min.y,box.max.y])for(const z of [box.min.z,box.max.z]){
+          point.set(x,y,z).applyMatrix4(transform);expand(scene,point.x,point.y,point.z);
+          if(atom)expand(atoms,point.x,point.y,point.z);
+        }
       }
-      result=canvas.toDataURL('image/png');
+    };
+    this.group.traverseVisible(node=>{
+      if(!node.geometry)return;
+      if(node.isInstancedMesh){
+        for(let index=0;index<node.count;index++){
+          node.getMatrixAt(index,instance);
+          matrix.multiplyMatrices(camera.matrixWorldInverse,node.matrixWorld).multiply(instance);add(node,matrix);
+        }
+      }else{matrix.multiplyMatrices(camera.matrixWorldInverse,node.matrixWorld);add(node,matrix);}
+    });
+    // Text anchors sit beyond the arrow tips; frame reserves a font-sized margin.
+    for(const axis of this.labels){point.copy(axis.position).applyMatrix4(camera.matrixWorldInverse);expand(scene,point.x,point.y,point.z);}
+    if(!Number.isFinite(scene.minX))throw new Error('There is no visible structure to export.');
+    return {scene,atoms:Number.isFinite(atoms.minX)?atoms:null};
+  }
+  drawExportAxes(ctx,camera,width,height,font,dx=0) {
+    ctx.save();ctx.font=font+'px system-ui';ctx.fillStyle='#213b40';ctx.textAlign='left';ctx.textBaseline='alphabetic';
+    for(const axis of this.labels){
+      const p=axis.position.clone().project(camera);
+      if(p.z>=-1&&p.z<=1)ctx.fillText(axis.name,dx+(p.x+1)*width/2,(-p.y+1)*height/2);
+    }
+    ctx.restore();
+  }
+  capture({width,height,transparent=false,legend=true,dpi=300,legendGapCm=1}) {
+    validateCaptureSize(width,height,dpi,this.exportLimit());
+    if(!this.model||!this.settings)throw new Error('Load a structure before exporting.');
+    const renderer=this.renderer,originalSettings=this.settings;
+    const size=renderer.getSize(new THREE.Vector2()),pixelRatio=renderer.getPixelRatio();
+    const oldColor=renderer.getClearColor(new THREE.Color()),oldAlpha=renderer.getClearAlpha();
+    const oldTarget=renderer.getRenderTarget(),oldViewport=renderer.getViewport(new THREE.Vector4());
+    const oldScissor=renderer.getScissor(new THREE.Vector4()),oldScissorTest=renderer.getScissorTest();
+    const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
+    const ctx=canvas.getContext('2d',{willReadFrequently:true});
+    if(!ctx)throw new Error('A canvas for the figure could not be created.');
+    const gapPixels=physicalGapPixels(dpi,legendGapCm);
+    const layout=legend?layoutElementLegend(ctx,this.model.elements,width,height):{width:0,height:0};
+    drawElementLegend(ctx,layout,originalSettings.colors);
+    const legendBounds=layout.width?scanAlphaBounds(ctx,width,height,{width:layout.width,height:layout.height}):null;
+    ctx.clearRect(0,0,width,height);
+    const axisFont=Math.max(12,Math.round(Math.min(width,height)*.023));
+    const margin=Math.max(8,Math.ceil(axisFont*1.3)),exportCamera=this.camera.clone();
+    // Live camera, controls target, orbit, pan and zoom remain untouched.
+    exportCamera.zoom=1;let result;
+    try {
+      this.settings={...originalSettings,background:'light'};this.build();
+      const geometry=this.projectedGeometryBounds(exportCamera);
+      const targetLeft=legendBounds?legendBounds.right+gapPixels+1:margin+1;
+      const atomLeft=legendBounds?(geometry.atoms?.minX??geometry.scene.minX):geometry.scene.minX;
+      const frame=fitExportFrame({width,height,bounds:geometry.scene,atomLeft,targetLeft,margin,
+        leftGuard:legendBounds?legendBounds.right+margin:margin});
+      Object.assign(exportCamera,{left:frame.left,right:frame.right,top:frame.top,bottom:frame.bottom});
+      // Move only along cloned camera's depth axis, preserving orientation.
+      const depth=Math.max(geometry.scene.maxZ-geometry.scene.minZ,1),depthMargin=Math.max(1,depth*.1);
+      const back=new THREE.Vector3(0,0,1).applyQuaternion(exportCamera.quaternion);
+      exportCamera.position.addScaledVector(back,geometry.scene.maxZ+depthMargin);
+      exportCamera.near=Math.max(.00001,depth*.000001);exportCamera.far=depth+depthMargin*2;
+      exportCamera.updateProjectionMatrix();exportCamera.updateMatrixWorld(true);
+      renderer.setRenderTarget(null);renderer.setScissorTest(false);renderer.setPixelRatio(1);
+      renderer.setSize(width,height,false);renderer.setViewport(0,0,width,height);
+      // Measure transparent layers even when final requested background is white.
+      renderer.setClearColor(0xffffff,0);
+      let atomBounds=null;
+      if(geometry.atoms&&legendBounds) {
+        const visibility=[];this.group.traverseVisible(node=>{if(node.geometry)visibility.push([node,node.visible]);});
+        try {
+          for(const [node] of visibility)node.visible=!!node.userData.exportAtom;
+          renderer.render(this.scene,exportCamera);ctx.drawImage(renderer.domElement,0,0);
+          atomBounds=scanAlphaBounds(ctx,width,height);
+        } finally {for(const [node,visible] of visibility)node.visible=visible;}
+        ctx.clearRect(0,0,width,height);
+      }
+      renderer.render(this.scene,exportCamera);ctx.drawImage(renderer.domElement,0,0);
+      this.drawExportAxes(ctx,exportCamera,width,height,axisFont);
+      const sceneBounds=scanAlphaBounds(ctx,width,height);
+      const aligned=alignRasterBounds({legendBounds,atomBounds,sceneBounds,gapPixels,width,height});
+      ctx.clearRect(0,0,width,height);
+      if(!transparent){ctx.fillStyle='#ffffff';ctx.fillRect(0,0,width,height);}
+      // Integer translation preserves measured antialiased silhouette exactly.
+      ctx.drawImage(renderer.domElement,aligned.dx,0);
+      this.drawExportAxes(ctx,exportCamera,width,height,axisFont,aligned.dx);
+      drawElementLegend(ctx,layout,originalSettings.colors);
+      const diagnostics={width,height,dpi,transparent,legend,
+        requestedGapCm:legendBounds?legendGapCm:null,gapPixels:aligned.gapPixels,
+        actualGapCm:legendBounds?gapPixels*2.54/dpi:null,gapReference:aligned.gapReference,
+        legendBounds,legendContentRight:legendBounds?.right??null,
+        atomBounds:aligned.atomBounds,atomPixelLeft:aligned.atomBounds?.left??null,
+        sceneBounds:aligned.sceneBounds,referenceBounds:aligned.referenceBounds,
+        sceneTranslationX:aligned.dx,legendColumns:layout.width?1:0};
+      const dataUrl=canvas.toDataURL('image/png');
+      if(!dataUrl.startsWith('data:image/png;'))throw new Error('The requested figure is too large for this browser.');
+      this.lastCaptureDiagnostics=diagnostics;result={canvas,dataUrl,diagnostics};
     } finally {
-      this.settings={...this.settings,background:oldBackground};this.build();renderer.setPixelRatio(pixelRatio);renderer.setSize(size.x,size.y,false);renderer.setClearColor(oldColor,oldAlpha);Object.assign(camera,frustum);camera.updateProjectionMatrix();renderer.render(this.scene,camera);this.updateLabels();
+      this.settings=originalSettings;
+      try {this.build();}
+      finally {
+        renderer.setPixelRatio(pixelRatio);renderer.setSize(size.x,size.y,false);
+        renderer.setClearColor(oldColor,oldAlpha);renderer.setRenderTarget(oldTarget);
+        renderer.setViewport(oldViewport);renderer.setScissor(oldScissor);renderer.setScissorTest(oldScissorTest);
+        renderer.render(this.scene,this.camera);this.updateLabels();
+      }
     }
     return result;
   }

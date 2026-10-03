@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url';
 const require=createRequire(new URL('../frontend/package.json',import.meta.url));
 const {chromium,expect}=require('@playwright/test');
 const root=fileURLToPath(new URL('../',import.meta.url));
-const base='http://127.0.0.1:5174';
+const base=process.env.CRYSTAL_URL||'http://127.0.0.1:5174';
+const api=process.env.CRYSTAL_API_URL||'http://127.0.0.1:8000';
 const browser=await chromium.launch({...(process.env.CHROME_PATH?{executablePath:process.env.CHROME_PATH}:{channel:'chrome'}),headless:true,args:['--enable-unsafe-swiftshader']});
 const errors=[];const consoleErrors=[];
 try {
@@ -22,7 +23,7 @@ try {
     await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
     const box=await page.evaluate(()=>({width:document.documentElement.scrollWidth,view:document.documentElement.clientWidth}));
     assert.ok(box.width<=box.view+1,'Responsive width '+width+': '+JSON.stringify(box));
-    const canvas=await page.locator('#viewport > canvas[role="img"]').boundingBox();assert.ok(canvas.width>200&&canvas.height>=350,'Usable 3D view at '+width);
+    const canvas=await page.locator('#viewport > canvas[role="img"]').boundingBox();assert.ok(canvas.width>240&&Math.abs(canvas.width-canvas.height)<1.1,'Usable 3D view at '+width);
     await page.locator('#open-settings').focus();await page.keyboard.press('Tab');await expect(page.locator(width<=980?'#camera-view':'.sidebar .panel:first-child > summary')).toBeFocused();
   }
   await page.setViewportSize({width:1440,height:1000});
@@ -50,7 +51,7 @@ try {
   await page.locator('#project-file').setInputFiles({name:'untrusted.crystal.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify(project))});
   await expect(page.locator('#structure-title')).toContainText('<img');assert.equal(await page.locator('#structure-title img').count(),0);assert.equal(await page.evaluate(()=>window.__injected),undefined);
   console.log('PASS periodic contact inspection, atom selection, measurements and safe project persistence');
-  await page.locator('#open-settings').click();await page.locator('#api-url').fill('http://127.0.0.1:8000');await page.locator('#test-service').click();await expect(page.locator('#service-result')).toContainText('Connected');await page.getByRole('button',{name:'Save connection',exact:true}).click();
+  await page.locator('#open-settings').click();await page.locator('#api-url').fill(api);await page.locator('#test-service').click();await expect(page.locator('#service-result')).toContainText('Connected');await page.getByRole('button',{name:'Save connection',exact:true}).click();
   await page.locator('#example-select').selectOption('nacl');
   const supercell=page.locator('.panel').filter({has:page.locator('#repeat-a')});await supercell.locator('summary').click();
   await page.locator('#repeat-a').fill('2');await page.locator('#apply-supercell').click();await expect(page.locator('#status')).toContainText('Structure updated');await expect(page.locator('#structure-meta')).toContainText('16 atoms');

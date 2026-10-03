@@ -2,14 +2,15 @@ import './style.css';
 import examples from './examples.json';
 import { CrystalViewer } from './viewer.js';
 import { paintLegendBall } from './legend.js';
-import { validateStructure, validateProject, measureAtoms, exportDimensions, pngWithDpi } from './model.js';
+import { validateStructure, validateProject, measureAtoms, exportDimensions, pngWithDpi, getDisplayBonds, remapCustomBonds } from './model.js';
+import { buildManualStructure, parseManualAtomRows } from './manual.js';
 
 const $ = selector => document.querySelector(selector);
 const compactLayout=matchMedia('(max-width: 980px)');
 function orderWorkspace(){const workspace=$('#workspace'),first=compactLayout.matches?$('.viewer-column'):$('.sidebar');if(workspace.firstElementChild===first)return;const active=document.activeElement;workspace.prepend(first);if(active instanceof HTMLElement&&active!==document.body)active.focus({preventScroll:true});}
 compactLayout.addEventListener('change',orderWorkspace);orderWorkspace();
 const node = (tag, text, className) => { const n = document.createElement(tag); if (text !== undefined) n.textContent = text; if (className) n.className = className; return n; };
-const initialSettings = () => ({ representation: 'ball-stick', atomScale: 1, bondScale: 1.1, showCell: true, showAxes: true, showPeriodic: true, showLegend: true, background: 'dark', colors: {}, repetitions: [1,1,1] });
+const initialSettings = () => ({ representation: 'ball-stick', atomScale: 1, bondScale: 1.1, showCell: true, showAxes: true, showPeriodic: true, showLegend: true, background: 'dark', colors: {}, repetitions: [1,1,1], connectionMode: 'automatic', customBonds: [] });
 const state = { unit: null, view: null, settings: initialSettings(), selection: [], generation: 0, applied: { bondScale: 1.1, repetitions: [1,1,1] } };
 let viewer, controller, debounce, requestBusy = false, exportBusy = false, apiBase = '';
 const say = message => { $('#status').textContent = message; };
@@ -22,7 +23,14 @@ function normalizeApi(value) {
   return url.href.replace(/\/$/, '');
 }
 try { apiBase = normalizeApi(storageRead() ?? import.meta.env.VITE_API_BASE_URL ?? (['localhost','127.0.0.1'].includes(location.hostname) ? 'http://127.0.0.1:8000' : '')); } catch { apiBase = ''; }
-function controlsBusy() { for (const id of ['save-project','apply-supercell']) $('#' + id).disabled = requestBusy || exportBusy || !state.view; $('#open-export').disabled = requestBusy || exportBusy || !state.view || !viewer; }
+function controlsBusy() {
+  for (const id of ['save-project','apply-supercell','calculate-contacts']) $('#' + id).disabled = requestBusy || exportBusy || !state.view;
+  $('#open-export').disabled = requestBusy || exportBusy || !state.view || !viewer;
+  const pair = selectedConnection();
+  $('#connect-selected').disabled = requestBusy || exportBusy || state.selection.length !== 2 || pair !== undefined;
+  $('#disconnect-selected').disabled = requestBusy || exportBusy || pair === undefined;
+  $('#manual-submit').disabled = exportBusy;
+}
 function busy(active, message = '') { requestBusy = active; $('#busy-overlay').hidden = !active; $('#busy-message').textContent = message; controlsBusy(); }
 function serviceLabel(message) { $('#service-state').textContent = message || (apiBase ? 'Python service configured' : 'Configure Python service'); }
 serviceLabel();
@@ -63,6 +71,7 @@ $('#test-service').onclick = async () => {
 function acceptUnit(unit) {
   validateStructure(unit); controller?.abort(); state.generation++; busy(false); state.unit = unit; state.view = structuredClone(unit); state.selection = [];
   state.settings.bondScale = 1.1; state.settings.repetitions = [1,1,1]; state.applied = { bondScale: 1.1, repetitions: [1,1,1] };
+  state.settings.customBonds = [];state.settings.connectionMode = unit.source.format === 'manual' ? 'manual' : 'automatic';
   syncControls(); render(true);
 }
 function render(reset = false) {
@@ -74,7 +83,7 @@ function render(reset = false) {
   const cards = [ ['Atoms',m.atoms.length.toLocaleString()], ['Volume',m.cell.volume.toFixed(3)+' Å³'], ['Lengths · Å',m.cell.lengths.map(n=>n.toFixed(3)).join(' / ')], ['Angles · °',m.cell.angles.map(n=>n.toFixed(2)).join(' / ')] ];
   $('#structure-stats').replaceChildren(...cards.map(([label,value])=>{const card=node('div',undefined,'stat-card');card.append(node('span',label),node('strong',value));return card;}));
   $('#warnings').hidden = !m.warnings.length; $('#warnings').replaceChildren(...m.warnings.map(w=>node('p',w)));
-  $('#contact-count').textContent = m.bonds.filter(b=>s.showPeriodic||b.shift.every(n=>n===0)).length.toLocaleString() + ' contacts' + (s.showPeriodic ? ' · faint spheres show periodic neighbors' : ' · periodic contacts hidden');
+  $('#contact-count').textContent = getDisplayBonds(m,s).length.toLocaleString() + ' connections · ' + s.customBonds.length.toLocaleString() + ' manual' + (s.showPeriodic ? ' · faint spheres show periodic neighbors' : ' · periodic contacts hidden');
   const palette = $('#element-controls'); palette.replaceChildren(); const legend = $('#scene-legend'); legend.replaceChildren(); legend.hidden = !s.showLegend;
   for (const element of m.elements) {
     const color = s.colors[element.symbol] || element.color, row=node('label',undefined,'element-control'),input=document.createElement('input');
@@ -83,7 +92,7 @@ function render(reset = false) {
     input.oninput=()=>{state.settings.colors[element.symbol]=input.value; viewer?.setStructure(state.view,state.settings); const ball=legend.querySelector('[data-element="'+element.symbol+'"]'); if(ball)paintLegendBall(ball,input.value);};
     palette.append(row); const item=node('span',undefined,'legend-item'),ball=node('canvas',undefined,'legend-ball');ball.dataset.element=element.symbol;ball.setAttribute('aria-hidden','true');paintLegendBall(ball,color);item.append(ball,node('span',element.symbol));legend.append(item);
   }
-  renderAtoms(); renderMeasurements(); viewer?.setStructure(m,s,reset); viewer?.highlight(state.selection); controlsBusy();
+  renderAtoms(); renderMeasurements();renderConnections(); viewer?.setStructure(m,s,reset); viewer?.highlight(state.selection); controlsBusy();
 }
 function renderAtoms() {
   if (!state.view) return;
@@ -98,7 +107,36 @@ function renderAtoms() {
   if(!rows.length){const row=node('tr'),cell=node('td','No matching atoms.');cell.colSpan=6;row.append(cell);rows.push(row);} $('#atom-rows').replaceChildren(...rows);
   if(focusedId!==undefined)$('#atom-rows').querySelector('[data-atom-id="'+focusedId+'"]')?.focus({preventScroll:true});
 }
-function selectAtom(id) { const index=state.selection.indexOf(id); if(index>=0)state.selection.splice(index,1);else{if(state.selection.length===3)state.selection.shift();state.selection.push(id);}viewer?.highlight(state.selection);renderAtoms();renderMeasurements(); }
+function selectAtom(id) { const index=state.selection.indexOf(id); if(index>=0)state.selection.splice(index,1);else{if(state.selection.length===3)state.selection.shift();state.selection.push(id);}viewer?.highlight(state.selection);renderAtoms();renderMeasurements();renderConnections();controlsBusy(); }
+function selectedConnection() {
+  if(state.selection.length!==2)return undefined;
+  return state.settings.customBonds.find(bond => state.selection.includes(bond.i) && state.selection.includes(bond.j));
+}
+function renderConnections() {
+  const target=$('#manual-connections');target.replaceChildren();
+  $('#connection-selection').textContent=state.selection.length===2 ? state.selection.map(id=>state.view.atoms[id].element+' '+(id+1)).join(' ↔ ') : 'Select exactly two atoms in the 3D view or Atoms table.';
+  for(const bond of state.settings.customBonds.slice(0,100)) {
+    const row=node('div',undefined,'manual-connection'),description=[bond.i,bond.j].map(id=>state.view.atoms[id].element+' '+(id+1)).join(' ↔ '),button=node('button','Remove','button secondary');
+    button.type='button';button.setAttribute('aria-label','Remove manual connection '+description);
+    button.onclick=()=>{state.settings.customBonds=state.settings.customBonds.filter(item=>item!==bond);render();say('Manual connection removed.');};
+    row.append(node('span',description),button);target.append(row);
+  }
+  if(state.settings.customBonds.length>100)target.append(node('p','Showing the first 100 of '+state.settings.customBonds.length+' manual connections.','field-help'));
+}
+$('#connect-selected').onclick=()=>{
+  if(state.selection.length!==2)return;
+  const [i,j]=state.selection,previous=state.settings;
+  try {
+    state.settings={...previous,customBonds:[...previous.customBonds,{i:Math.min(i,j),j:Math.max(i,j),shift:[0,0,0]}],connectionMode:previous.connectionMode==='automatic'?'both':previous.connectionMode,representation:['spheres','spacefill'].includes(previous.representation)?'ball-stick':previous.representation};
+    getDisplayBonds(state.view,state.settings);syncControls();render();say('Selected atoms connected. Manual connections are included in figures and saved projects.');
+  }catch(error){state.settings=previous;syncControls();say(error.message);}
+};
+$('#disconnect-selected').onclick=()=>{const bond=selectedConnection();if(!bond)return;state.settings.customBonds=state.settings.customBonds.filter(item=>item!==bond);render();say('Manual connection removed.');};
+function updateDisplaySettings(patch) {
+  try {const settings={...state.settings,...patch};if(state.view)getDisplayBonds(state.view,settings);state.settings=settings;render();}
+  catch(error){syncControls();say(error.message);}
+}
+$('#connection-mode').onchange=event=>updateDisplaySettings({connectionMode:event.target.value});
 function renderMeasurements() {
   const target=$('#measurements');target.replaceChildren();$('#selection-chip').hidden=!state.selection.length;
   $('#selection-chip').textContent=state.selection.map(i=>state.view.atoms[i].element+' '+(i+1)).join(' → ');
@@ -109,7 +147,7 @@ function renderMeasurements() {
   const pair=state.view.bonds.filter(b=>(b.i===atoms[0].id&&b.j===atoms[1].id)||(b.j===atoms[0].id&&b.i===atoms[1].id));
   if(pair.length){target.append(node('p','Periodic contact records · shifts follow your selection order','field-help'));for(const contact of pair.slice(0,12)){const shift=contact.i===atoms[0].id?contact.shift:contact.shift.map(n=>-n);target.append(node('p',contact.distance.toFixed(5)+' Å · image shift ['+shift.join(', ')+']'));}if(pair.length>12)target.append(node('p','Showing 12 of '+pair.length+' contact images.'));}
 }
-$('#clear-selection').onclick=()=>{state.selection=[];viewer?.highlight([]);renderAtoms();renderMeasurements();};
+$('#clear-selection').onclick=()=>{state.selection=[];viewer?.highlight([]);renderAtoms();renderMeasurements();renderConnections();controlsBusy();};
 $('#atom-filter').oninput=renderAtoms;$('#coordinate-mode').onchange=renderAtoms;
 const tabs=[...document.querySelectorAll('[role="tab"]')];
 function activateTab(tab){for(const button of tabs){const selected=button===tab;button.setAttribute('aria-selected',String(selected));button.tabIndex=selected?0:-1;$('#'+button.getAttribute('aria-controls')).hidden=!selected;}}
@@ -119,27 +157,50 @@ function syncControls() {
   $('#atom-scale-value').value=s.atomScale.toFixed(2);$('#bond-scale-value').value=s.bondScale.toFixed(2)+'×';
   for(const [id,key] of [['show-cell','showCell'],['show-axes','showAxes'],['show-periodic','showPeriodic'],['show-legend','showLegend']])$('#'+id).checked=s[key];
   ['a','b','c'].forEach((letter,index)=>$('#repeat-'+letter).value=s.repetitions[index]);
+  $('#connection-mode').value=s.connectionMode;
 }
-for(const [id,key] of [['representation','representation'],['background','background']])$('#'+id).onchange=event=>{state.settings[key]=event.target.value;render();};
-for(const [id,key] of [['show-cell','showCell'],['show-axes','showAxes'],['show-periodic','showPeriodic'],['show-legend','showLegend']])$('#'+id).onchange=event=>{state.settings[key]=event.target.checked;render();};
+for(const [id,key] of [['representation','representation'],['background','background']])$('#'+id).onchange=event=>updateDisplaySettings({[key]:event.target.value});
+for(const [id,key] of [['show-cell','showCell'],['show-axes','showAxes'],['show-periodic','showPeriodic'],['show-legend','showLegend']])$('#'+id).onchange=event=>updateDisplaySettings({[key]:event.target.checked});
 $('#atom-scale').oninput=event=>{state.settings.atomScale=Number(event.target.value);$('#atom-scale-value').value=state.settings.atomScale.toFixed(2);viewer?.setStructure(state.view,state.settings);};
-async function rebuild() {
+async function rebuild({force=false}={}) {
   if(!state.unit)return;
   const scale=Number($('#bond-scale').value),repetitions=['a','b','c'].map(k=>Number($('#repeat-'+k).value));
   const generation=state.generation;
   try {
     if(!repetitions.every(n=>Number.isInteger(n)&&n>=1&&n<=4)||repetitions.reduce((p,n)=>p*n,1)*state.unit.atoms.length>2000)throw new Error('Use 1–4 repetitions per axis and at most 2,000 atoms.');
     let result;
-    if(scale===1.1&&repetitions.every(n=>n===1)){controller?.abort();state.generation++;busy(false);result=structuredClone(state.unit);}
+    if(!force&&state.unit.source.format!=='manual'&&scale===1.1&&repetitions.every(n=>n===1)){controller?.abort();state.generation++;busy(false);result=structuredClone(state.unit);}
     else result=await request('/api/rebuild',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({structure:state.unit,bondScale:scale,repetitions})},'Calculating periodic contacts and supercell…');
-    state.view=validateStructure(result);state.settings.bondScale=scale;state.settings.repetitions=repetitions;state.applied={bondScale:scale,repetitions:[...repetitions]};state.selection=[];render(true);say('Structure updated. Periodic image shifts are preserved.');
+    validateStructure(result);
+    const previousCount=state.settings.customBonds.length;
+    const customBonds=remapCustomBonds(state.settings.customBonds,state.unit.atoms.length,state.applied.repetitions,repetitions);
+    const settings={...state.settings,customBonds,bondScale:scale,repetitions,connectionMode:force?(customBonds.length?'both':'automatic'):state.settings.connectionMode};
+    getDisplayBonds(result,settings);
+    state.view=result;state.settings=settings;state.applied={bondScale:scale,repetitions:[...repetitions]};state.selection=[];syncControls();render(true);say('Structure updated. Periodic image shifts are preserved.'+(previousCount>state.settings.customBonds.length?' Connections to atoms outside the new supercell were removed.':''));
   } catch(error){if(generation+1<state.generation)return;state.settings.bondScale=state.applied.bondScale;state.settings.repetitions=[...state.applied.repetitions];syncControls();say(error.message);}
 }
 $('#bond-scale').oninput=event=>{$('#bond-scale-value').value=Number(event.target.value).toFixed(2)+'×';clearTimeout(debounce);debounce=setTimeout(rebuild,350);};
 $('#apply-supercell').onclick=()=>{clearTimeout(debounce);rebuild();};
+$('#calculate-contacts').onclick=()=>{clearTimeout(debounce);rebuild({force:true});};
 $('#camera-view').onchange=()=>viewer?.fit($('#camera-view').value);$('#reset-camera').onclick=()=>viewer?.fit($('#camera-view').value);
 $('#zoom-in').onclick=()=>viewer?.zoom(1.25);$('#zoom-out').onclick=()=>viewer?.zoom(.8);
 $('#open-file').onclick=()=>$('#structure-file').click();$('#load-project').onclick=()=>$('#project-file').click();
+$('#open-manual').onclick=()=>{$('#manual-error').hidden=true;$('#manual-dialog').showModal();};
+$('#copy-current-manual').onclick=()=>{
+  if(!state.unit)return;
+  $('#manual-name').value=state.unit.name;
+  ['a','b','c'].forEach((key,index)=>$('#manual-'+key).value=state.unit.cell.lengths[index]);
+  ['alpha','beta','gamma'].forEach((key,index)=>$('#manual-'+key).value=state.unit.cell.angles[index]);
+  $('#manual-atoms').value=state.unit.atoms.map(atom=>[atom.element,...atom.fractional,atom.occupancy].join(' ')).join('\n');
+  $('#manual-error').hidden=true;
+};
+$('#manual-form').onsubmit=event=>{
+  event.preventDefault();
+  try {
+    const unit=buildManualStructure({name:$('#manual-name').value,lengths:['a','b','c'].map(key=>Number($('#manual-'+key).value)),angles:['alpha','beta','gamma'].map(key=>Number($('#manual-'+key).value)),atoms:parseManualAtomRows($('#manual-atoms').value)});
+    clearTimeout(debounce);acceptUnit(unit);$('#manual-dialog').close();say('Manual structure created. Select two atoms to connect them, or calculate contacts with the Python service.');
+  }catch(error){$('#manual-error').textContent=error.message;$('#manual-error').hidden=false;}
+};
 async function importFile(file) {
   if(!file)return;clearTimeout(debounce);
   if(!/\.(cif|vesta)$/i.test(file.name)){say('Choose a CIF or VESTA structure file.');return;}
@@ -154,17 +215,26 @@ dropzone.ondragover=event=>{event.preventDefault();dropzone.classList.add('dragg
 function download(blob, filename) {const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=filename;link.click();setTimeout(()=>URL.revokeObjectURL(url),15000);}
 const fileStem = () => (state.unit?.name||'crystal-structure').replace(/[^a-zA-Z0-9_-]+/g,'-').slice(0,70);
 $('#save-project').onclick=()=>{if(!state.unit)return;const project={format:'crystal-studio-project',version:1,savedAt:new Date().toISOString(),unit:state.unit,view:state.view,settings:state.settings,camera:viewer?.cameraState()};download(new Blob([JSON.stringify(project,null,2)],{type:'application/json'}),fileStem()+'.crystal.json');say('Project downloaded with structure, display settings and camera.');};
-$('#project-file').onchange=async event=>{const file=event.target.files[0];event.target.value='';if(!file)return;try{if(file.size>8*1024*1024)throw new Error('The project exceeds the 8 MB limit.');const project=validateProject(JSON.parse(await file.text()));controller?.abort();state.generation++;clearTimeout(debounce);busy(false);state.unit=project.unit;state.view=project.view;state.settings=project.settings;state.applied={bondScale:project.settings.bondScale,repetitions:[...project.settings.repetitions]};state.selection=[];syncControls();render(true);viewer?.restoreCamera(project.camera);say('Project restored.');}catch(error){say('Unable to load project: '+error.message);}};
+$('#project-file').onchange=async event=>{
+  const file=event.target.files[0];event.target.value='';if(!file)return;
+  controller?.abort();const generation=++state.generation;clearTimeout(debounce);busy(false);
+  try{
+    if(file.size>8*1024*1024)throw new Error('The project exceeds the 8 MB limit.');
+    const text=await file.text();if(generation!==state.generation)return;
+    const project=validateProject(JSON.parse(text));
+    state.unit=project.unit;state.view=project.view;state.settings={...initialSettings(),...project.settings};state.applied={bondScale:project.settings.bondScale,repetitions:[...project.settings.repetitions]};state.selection=[];syncControls();render(true);viewer?.restoreCamera(project.camera);say('Project restored.');
+  }catch(error){if(generation===state.generation)say('Unable to load project: '+error.message);}
+};
 for(const example of examples){const option=node('option',example.label);option.value=example.id;$('#example-select').append(option);}
 $('#example-select').onchange=()=>{const selected=examples.find(e=>e.id===$('#example-select').value);if(selected){clearTimeout(debounce);acceptUnit(structuredClone(selected.structure));say('Loaded '+selected.label+'. This is an idealized example structure.');}};
-function exportSummary() {try{const dims=exportDimensions(Number($('#export-width').value),Number($('#export-height').value),Number($('#export-dpi').value),viewer?.exportLimit()||4096);$('#export-summary').textContent=dims.width.toLocaleString()+' × '+dims.height.toLocaleString()+' px · '+dims.widthCm+' × '+dims.heightCm+' cm · '+dims.dpi+' DPI';$('#export-error').hidden=true;$('#export-submit').disabled=false;}catch(error){$('#export-summary').textContent='Adjust the figure dimensions or resolution.';$('#export-error').textContent=error.message;$('#export-error').hidden=false;$('#export-submit').disabled=true;}}
+function exportSummary() {try{const dims=exportDimensions(Number($('#export-width').value),Number($('#export-height').value),Number($('#export-dpi').value),viewer?.exportLimit()||8192);$('#export-summary').textContent=dims.width.toLocaleString()+' × '+dims.height.toLocaleString()+' px · '+dims.widthCm+' × '+dims.heightCm+' cm · '+dims.dpi+' DPI';$('#export-error').hidden=true;$('#export-submit').disabled=false;}catch(error){$('#export-summary').textContent='Adjust the figure dimensions or resolution.';$('#export-error').textContent=error.message;$('#export-error').hidden=false;$('#export-submit').disabled=true;}}
 for(const id of ['export-width','export-height','export-dpi'])$('#'+id).oninput=exportSummary;
 $('#open-export').onclick=()=>{if(!viewer||!state.view)return;exportSummary();$('#export-dialog').showModal();};
 $('#export-form').onsubmit=async event=>{
   event.preventDefault();if(!viewer)return;exportBusy=true;controlsBusy();$('#export-submit').disabled=true;
-  try{const dims=exportDimensions(Number($('#export-width').value),Number($('#export-height').value),Number($('#export-dpi').value),viewer.exportLimit());const data=viewer.capture({...dims,transparent:$('#export-background').value==='transparent',legend:$('#export-legend').checked});
-    if($('#export-format').value==='png'){const bytes=Uint8Array.from(atob(data.split(',')[1]),c=>c.charCodeAt(0));download(new Blob([pngWithDpi(bytes,dims.dpi)],{type:'image/png'}),fileStem()+'.png');}
-    else{const {jsPDF}=await import('jspdf');const pdf=new jsPDF({orientation:dims.widthCm>=dims.heightCm?'landscape':'portrait',unit:'mm',format:[dims.widthCm*10,dims.heightCm*10],compress:true});pdf.setProperties({title:state.view.name,subject:'Crystal structure raster figure',creator:'Crystal Studio Web'});pdf.addImage(data,'PNG',0,0,dims.widthCm*10,dims.heightCm*10);pdf.save(fileStem()+'.pdf');}
+  try{const dims=exportDimensions(Number($('#export-width').value),Number($('#export-height').value),Number($('#export-dpi').value),viewer.exportLimit());const title=state.view.name,stem=fileStem();const captured=viewer.capture({...dims,transparent:$('#export-background').value==='transparent',legend:$('#export-legend').checked,legendGapCm:1});const data=captured.dataUrl;
+    if($('#export-format').value==='png'){const bytes=Uint8Array.from(atob(data.split(',')[1]),c=>c.charCodeAt(0));download(new Blob([pngWithDpi(bytes,dims.dpi)],{type:'image/png'}),stem+'.png');}
+    else{const {jsPDF}=await import('jspdf');const pdf=new jsPDF({orientation:dims.widthCm>=dims.heightCm?'landscape':'portrait',unit:'mm',format:[dims.widthCm*10,dims.heightCm*10],compress:true});pdf.setProperties({title,subject:'Crystal structure raster figure',creator:'Crystal Studio Web'});pdf.addImage(data,'PNG',0,0,dims.widthCm*10,dims.heightCm*10);pdf.save(stem+'.pdf');}
     $('#export-dialog').close();say('Figure exported at '+dims.width+' × '+dims.height+' pixels and '+dims.dpi+' DPI.');
   }catch(error){$('#export-error').textContent=error.message;$('#export-error').hidden=false;}finally{exportBusy=false;controlsBusy();$('#export-submit').disabled=false;}
 };

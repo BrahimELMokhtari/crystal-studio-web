@@ -45,9 +45,15 @@ Check [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health) if the connec
 
 Load a bundled example or open a CIF or VESTA file, then inspect the structure in the 3D viewer. Choose ball and stick, spheres, space filling or contacts; adjust element colors; inspect the atom table; and select two or three atoms for a distance or angle. The supplied examples are schematic demonstrations: use your own verified crystal data for scientific results.
 
+The 3D canvas is square on desktop and mobile. Choose **Define structure manually** to enter cell lengths, angles and fractional atomic positions without importing a file or waiting for the Python service. Each line contains `element x y z [occupancy]`; occupancy defaults to 1. Enter every site in the unit cell, since this editor does not infer symmetry operations. It supports all 118 element symbols, rejects invalid or overlapping periodic sites, and explains when radii or colors use display defaults. **Copy current unit cell** fills the editor from the loaded structure.
+
+Select exactly two atoms in the viewer or atom table, then choose **Connect selected atoms** in the Atom connections panel. Choose calculated contacts, manual connections only, or both. Manual links use the selected displayed positions and are included in projects and figure exports. **Calculate contacts** asks the Python service for covalent-radius periodic contacts. Changing supercell dimensions retains connections whose selected atoms remain inside the new cell; links to removed atoms are removed with a status message.
+
 Download a project as JSON to keep a portable copy and restore it later. PNG and PDF exports are generated in your browser with the chosen physical size and DPI; PDFs embed a raster figure rather than vector geometry. Project downloads and images remain usable independently of the Python service; keep a downloaded JSON copy of work you need to retain.
 
-The element legend uses large shaded balls and clear element symbols in a vertical list, following your chosen element colors. In PNG and PDF exports, it stays fixed in the upper-left corner, independent of camera rotation and zoom. A separate margin keeps the structure clear of the legend. Longer lists continue into additional columns. Turn off the legend in export settings when you want a figure containing only the structure.
+The element legend uses large shaded balls and clear element symbols in a vertical list, following your chosen element colors. In PNG and PDF exports, it stays fixed in the upper-left corner, independent of camera rotation and zoom. The horizontal distance from the legend's visible edge to the nearest rendered atom is **1 cm**, rounded to the nearest output pixel at your chosen DPI. Export fits the structure to the available area while retaining the viewing angle and restores the live camera afterward. Longer lists continue into additional columns. Turn off the legend in export settings when you want a figure containing only the structure.
+
+Exports default to **8 × 8 cm at 1,200 DPI**. You can select up to 2,400 DPI, within the device's graphics limit, 8,192 pixels per side, and a 32-million-pixel budget. For example, a 5 cm square at 2,400 DPI produces 4,724 × 4,724 pixels. Choose **Transparent - no background** for a background-free PNG or PDF. The PDF keeps the alpha mask and requested physical page size; its image remains raster rather than vector geometry.
 
 Uploaded source files are sent to the configured Python service for processing. The application does not persist them on the server or publish them to GitHub. Put private reference documents outside the public repository; the included `.gitignore` excludes common local upload/export folders. The API uses bounded processing, and the 3D rendering stays in the browser rather than requiring server-side VTK.
 
@@ -108,6 +114,8 @@ node tests/browser.mjs
 ```
 
 The browser check uses the real local Python API to exercise structure imports, display controls, project save/load, measurements and image/PDF downloads. If Chrome is installed in a custom location, update the browser executable configuration in `tests/browser.mjs`.
+
+`CRYSTAL_API_URL` and `CRYSTAL_URL` override the browser regression check's API and frontend addresses. The additional `tests/improvements.py` browser check covers manual input, custom connections, square layouts, transparent exports, physical legend spacing, high-resolution PNGs and PDF alpha masks. It requires Python Playwright and installed Chrome; run `python tests/improvements.py --api http://127.0.0.1:8001` when testing an API on port 8001, or omit the argument for that default. Use `--url` to check a built or deployed frontend and `--api` to choose its backend. Browser artifacts are kept in the excluded `artifacts/` directory.
 
 ## Troubleshooting
 

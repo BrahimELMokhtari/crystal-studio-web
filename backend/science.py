@@ -176,7 +176,8 @@ def model(atoms: Atoms, *, name: str, source: dict[str, Any],
     scale = bond_scale(scale)
     repeat = repetitions(repeat)
     occupancy = validate_atoms(atoms, occupancies)
-    warnings = clean_warnings(warnings)
+    warnings = [warning for warning in clean_warnings(warnings)
+                if not warning.startswith("Automatic contacts have not been calculated for this manual structure.")]
     if np.any(occupancy == 0):
         atoms = atoms[occupancy > 0]
         occupancy = occupancy[occupancy > 0]
@@ -200,7 +201,7 @@ def model(atoms: Atoms, *, name: str, source: dict[str, Any],
     entries = []
     for index, (symbol, position, frac, number_, occ) in enumerate(zip(
             atoms.get_chemical_symbols(), atoms.positions, fractional, atoms.numbers, occupancy)):
-        radius = float(vdw_radii[number_])
+        radius = float(vdw_radii[number_]) if number_ < len(vdw_radii) else math.nan
         if not math.isfinite(radius) or radius <= 0:
             radius = float(covalent_radii[number_]) * 1.5
             warning = "Some elements lack tabulated van der Waals radii; their space-filling radii use 1.5 times the covalent radius."
@@ -211,7 +212,18 @@ def model(atoms: Atoms, *, name: str, source: dict[str, Any],
                         "vdwRadius": radius, "occupancy": float(occ)})
     elements = []
     for symbol in sorted(set(atoms.get_chemical_symbols()), key=atomic_numbers.get):
-        rgb = np.rint(jmol_colors[atomic_numbers[symbol]] * 255).astype(int)
+        atomic_number = atomic_numbers[symbol]
+        if atomic_number >= 97:
+            warning = "Elements Bk through Og lack tabulated covalent radii in ASE; a 2 angstrom display default is used and is not a measured radius."
+            if warning not in warnings:
+                warnings.append(warning)
+        if atomic_number < len(jmol_colors):
+            rgb = np.rint(jmol_colors[atomic_number] * 255).astype(int)
+        else:
+            rgb = np.array([144, 144, 144])
+            warning = "Elements Ds through Og lack a bundled Jmol color and use neutral gray."
+            if warning not in warnings:
+                warnings.append(warning)
         elements.append({"symbol": symbol, "count": atoms.get_chemical_symbols().count(symbol),
                          "color": "#" + "".join(f"{channel:02x}" for channel in rgb)})
     return {
@@ -222,6 +234,7 @@ def model(atoms: Atoms, *, name: str, source: dict[str, Any],
         "atoms": entries, "bonds": bonds, "elements": elements,
         "source": clean_source(source), "warnings": list(dict.fromkeys(warnings)),
         "repetitions": list(repeat), "baseAtomCount": base_count, "bondScale": scale,
+        "contactsCalculated": True,
     }
 
 

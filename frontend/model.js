@@ -1,4 +1,6 @@
 export const MAX_ATOMS = 2000;
+export const MAX_EXPORT_PIXELS = 32000000;
+export const MAX_MANUAL_BONDS = 2000;
 export const finite = value => typeof value === 'number' && Number.isFinite(value);
 export const norm = a => Math.hypot(...a);
 export const subtract = (a, b) => a.map((v, i) => v - b[i]);
@@ -16,6 +18,43 @@ export function measureAtoms(atoms) {
     result.angle = lengths > 1e-12 ? Math.acos(Math.max(-1, Math.min(1, u.reduce((sum, n, i) => sum + n * v[i], 0) / lengths))) * 180 / Math.PI : null;
   }
   return result;
+}
+export function validateCustomBonds(bonds, structure) {
+  if (!Array.isArray(bonds) || bonds.length > MAX_MANUAL_BONDS) throw new Error('Use at most 2,000 manual connections.');
+  const seen = new Set();
+  for (const bond of bonds) {
+    if (!bond || ![bond.i, bond.j].every(id => Number.isInteger(id) && id >= 0 && id < structure.atoms.length) || bond.i === bond.j || !Array.isArray(bond.shift) || bond.shift.length !== 3 || bond.shift.some(n => n !== 0)) throw new Error('Manual connections must join two different displayed atoms.');
+    const key = [bond.i, bond.j].sort((a,b) => a-b).join(':');
+    if (seen.has(key)) throw new Error('Duplicate manual connection.');
+    seen.add(key);
+    if (norm(subtract(structure.atoms[bond.i].position, structure.atoms[bond.j].position)) < 1e-8) throw new Error('Coincident atoms cannot be connected.');
+  }
+  return bonds;
+}
+export function getDisplayBonds(structure, settings) {
+  const mode = settings.connectionMode ?? 'automatic';
+  if (!['automatic','manual','both'].includes(mode)) throw new Error('Invalid connection display mode.');
+  const manual = validateCustomBonds(settings.customBonds ?? [], structure).map(bond => {
+    const start = structure.atoms[bond.i].position, end = structure.atoms[bond.j].position;
+    return {...bond, start, end, distance: norm(subtract(end, start)), manual: true};
+  });
+  const automatic = mode === 'manual' ? [] : structure.bonds.filter(bond => settings.showPeriodic || bond.shift.every(n => n === 0));
+  const result = [...automatic], keys = new Set(automatic.map(bond => [Math.min(bond.i,bond.j), Math.max(bond.i,bond.j), ...(bond.i <= bond.j ? bond.shift : bond.shift.map(n => -n))].join(':')));
+  if (mode !== 'automatic') for (const bond of manual) {
+    const key = [Math.min(bond.i,bond.j), Math.max(bond.i,bond.j),0,0,0].join(':');
+    if (!keys.has(key)) {result.push(bond);keys.add(key);}
+  }
+  if (result.length > 20000) throw new Error('The view exceeds 20,000 connections. Use manual connections only or reduce the contact cutoff.');
+  return result;
+}
+export function remapCustomBonds(bonds, baseCount, oldRepeats, newRepeats) {
+  const mapId = id => {
+    const tile = Math.floor(id/baseCount);
+    const offset = [Math.floor(tile/(oldRepeats[1]*oldRepeats[2])),Math.floor(tile/oldRepeats[2])%oldRepeats[1],tile%oldRepeats[2]];
+    if (offset.some((n,k) => n >= newRepeats[k])) return null;
+    return ((offset[0]*newRepeats[1]+offset[1])*newRepeats[2]+offset[2])*baseCount + id%baseCount;
+  };
+  return bonds.flatMap(bond => {const i=mapId(bond.i),j=mapId(bond.j);return i===null||j===null?[]:[{i,j,shift:[0,0,0]}];});
 }
 function vector(value, label) {
   if (!Array.isArray(value) || value.length !== 3 || !value.every(n => finite(n) && Math.abs(n) < 1e6)) throw new Error('Invalid ' + label + '.');
@@ -61,6 +100,9 @@ export function validateProject(value) {
   if (!s || !['ball-stick','spheres','spacefill','bonds'].includes(s.representation) || !finite(s.atomScale) || s.atomScale < .4 || s.atomScale > 2 || !finite(s.bondScale) || s.bondScale < .6 || s.bondScale > 1.8 || !Array.isArray(s.repetitions) || s.repetitions.length !== 3 || !s.repetitions.every(n => Number.isInteger(n) && n >= 1 && n <= 4) || !['dark','light'].includes(s.background)) throw new Error('Invalid project display settings.');
   for (const key of ['showCell','showAxes','showPeriodic','showLegend']) if (typeof s[key] !== 'boolean') throw new Error('Invalid project visibility settings.');
   if (!s.colors || Object.keys(s.colors).length > 118 || !Object.entries(s.colors).every(([element,color]) => /^[A-Z][a-z]?$/.test(element) && /^#[0-9a-f]{6}$/i.test(color))) throw new Error('Invalid project colors.');
+  if (s.connectionMode !== undefined && !['automatic','manual','both'].includes(s.connectionMode)) throw new Error('Invalid project connection mode.');
+  validateCustomBonds(s.customBonds === undefined ? [] : s.customBonds, value.view);
+  getDisplayBonds(value.view, s);
   const count=value.unit.atoms.length, repeatCount=s.repetitions.reduce((product,n)=>product*n,1);
   if(value.view.atoms.length!==count*repeatCount || value.view.cell.vectors.some((row,i)=>norm(subtract(row,value.unit.cell.vectors[i].map(n=>n*s.repetitions[i])))>1e-3)) throw new Error('The displayed supercell disagrees with the original unit cell and repetitions.');
   for(const [index,atom] of value.view.atoms.entries()){
@@ -76,10 +118,11 @@ export function validateProject(value) {
   }
   return value;
 }
-export function exportDimensions(widthCm, heightCm, dpi, limit = 4096) {
+export function exportDimensions(widthCm, heightCm, dpi, limit = 8192) {
   if (![widthCm,heightCm,dpi].every(finite) || widthCm < 1 || widthCm > 30 || heightCm < 1 || heightCm > 30 || !Number.isInteger(dpi) || dpi < 72 || dpi > 2400) throw new Error('Use dimensions from 1–30 cm and an integer resolution from 72–2,400 DPI.');
   const width = Math.round(widthCm * dpi / 2.54), height = Math.round(heightCm * dpi / 2.54);
   if (Math.max(width,height) > limit) throw new Error('This device supports exports up to ' + limit.toLocaleString() + ' pixels per side. Reduce the size or DPI.');
+  if (width * height > MAX_EXPORT_PIXELS) throw new Error('Exports support up to 32 million pixels. Reduce the figure size or DPI.');
   return { width, height, widthCm, heightCm, dpi };
 }
 const crcTable = new Uint32Array(256).map((_,n) => { for (let i=0;i<8;i++) n=n&1?0xedb88320^(n>>>1):n>>>1; return n>>>0; });

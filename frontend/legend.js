@@ -38,46 +38,45 @@ export function paintLegendBall(canvas, color) {
   drawLegendBall(ctx, size / 2, size / 2, size * .46, color);
 }
 
-export function layoutElementLegend(ctx, elements, width, height) {
-  if (!elements.length) return { width: 0, columns: [] };
+export function layoutElementLegend(ctx, elements, width, height, options = {}) {
+  if (!elements.length) return { width: 0, height: 0, columns: [] };
   const initialFont = Math.max(12, Math.round(Math.min(width, height) * .057));
-  const minimumFont = Math.max(6, Math.floor(initialFont * .52));
+  const maxWidth = options.maxWidth ?? Math.floor(width * .32);
   ctx.save();
   try {
-    for (let font = initialFont; font >= minimumFont; font--) {
-      const padding = Math.max(6, font * .8), radius = font * .48, gap = font * .85;
-      const lineHeight = font * 1.55, rowsPerColumn = Math.floor((height - padding * 2) / lineHeight);
-      if (rowsPerColumn < 1) continue;
+    // Keep a fixed vertical column; shrink uniformly when many elements are shown.
+    for (let font = initialFont; font >= 6; font--) {
+      const padding = Math.max(3, font * .65), radius = font * .48;
+      const lineHeight = font * 1.55;
+      const legendHeight = Math.ceil(padding * 2 + elements.length * lineHeight);
+      if (legendHeight > height) continue;
       ctx.font = font + 'px system-ui';
-      const columns = [];
-      for (let offset = 0; offset < elements.length; offset += rowsPerColumn) {
-        const entries = elements.slice(offset, offset + rowsPerColumn).map(element => ({ element, label: element.symbol }));
-        const columnWidth = radius * 2 + font * .55 + Math.max(...entries.map(entry => ctx.measureText(entry.label).width));
-        columns.push({ width: columnWidth, entries });
-      }
-      const legendWidth = Math.ceil(padding * 2 + columns.reduce((sum, column) => sum + column.width, 0) + gap * (columns.length - 1));
-      if (legendWidth <= Math.floor(width * .32)) {
-        return { width: legendWidth, font, radius, padding, lineHeight, gap, columns };
+      const entries = elements.map(element => ({ element, label: element.symbol }));
+      const columnWidth = radius * 2 + font * .55 +
+        Math.max(...entries.map(entry => ctx.measureText(entry.label).width));
+      const legendWidth = Math.ceil(padding * 2 + columnWidth + Math.max(.6, radius * .045));
+      if (legendWidth <= maxWidth) {
+        return { width: legendWidth, height: legendHeight, font, radius, padding,
+          lineHeight, columns: [{ width: columnWidth, entries }] };
       }
     }
     throw new Error('Increase the figure dimensions or turn off the element legend to fit all labels.');
   } finally { ctx.restore(); }
 }
 
-export function drawElementLegend(ctx, layout, colors) {
+export function drawElementLegend(ctx, layout, colors = {}) {
   if (!layout.width) return;
   ctx.save();
   ctx.font = layout.font + 'px system-ui';
   ctx.textBaseline = 'middle';
-  let x = layout.padding;
-  for (const column of layout.columns) {
-    for (const [index, entry] of column.entries.entries()) {
-      const y = layout.padding + layout.lineHeight * (index + .5);
-      drawLegendBall(ctx, x + layout.radius, y, layout.radius, colors[entry.element.symbol] || entry.element.color);
-      ctx.fillStyle = '#151c1f';
-      ctx.fillText(entry.label, x + layout.radius * 2 + layout.font * .55, y);
-    }
-    x += column.width + layout.gap;
+  ctx.textAlign = 'left';
+  const x = layout.padding;
+  for (const [index, entry] of layout.columns[0].entries.entries()) {
+    const y = layout.padding + layout.lineHeight * (index + .5);
+    drawLegendBall(ctx, x + layout.radius, y, layout.radius,
+      colors[entry.element.symbol] || entry.element.color);
+    ctx.fillStyle = '#151c1f';
+    ctx.fillText(entry.label, x + layout.radius * 2 + layout.font * .55, y);
   }
   ctx.restore();
 }

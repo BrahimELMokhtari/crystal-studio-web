@@ -178,3 +178,39 @@ def test_supercell_string_requires_integer_triplet():
     for text in ("1.0,1,1", "1,1", "1,1,6", "nan,1,1", "1;1;1"):
         with pytest.raises(StructureError):
             parse_repetitions(text)
+
+
+@pytest.mark.parametrize("symbol", ["Bk", "Lr", "Rf", "Ds", "Og"])
+def test_late_elements_have_explicit_bounded_radius_and_palette_fallbacks(symbol):
+    atoms = Atoms(symbols=[symbol], scaled_positions=[[0.1, 0.2, 0.3]],
+                  cell=[10, 10, 10], pbc=True)
+    result = synthetic_model(atoms)
+    entry = result["atoms"][0]
+    assert entry["covalentRadius"] == 2
+    assert entry["vdwRadius"] == 3
+    assert any("not a measured radius" in warning for warning in result["warnings"])
+    assert any("1.5 times" in warning for warning in result["warnings"])
+    assert result["elements"][0]["color"].startswith("#")
+    if symbol in ("Ds", "Og"):
+        assert result["elements"][0]["color"] == "#909090"
+        assert any("neutral gray" in warning for warning in result["warnings"])
+    rebuilt = rebuild(result)
+    assert rebuilt["atoms"][0]["element"] == symbol
+    assert rebuilt["contactsCalculated"] is True
+
+
+def test_rebuild_all_118_elements_and_remove_stale_manual_contact_warning():
+    from ase.data import chemical_symbols
+
+    atoms = Atoms(symbols=chemical_symbols[1:],
+                  scaled_positions=[[i / 118, 0.2, 0.3] for i in range(118)],
+                  cell=[1000, 10, 10], pbc=True)
+    result = synthetic_model(atoms)
+    assert len(result["atoms"]) == len(result["elements"]) == 118
+    result["source"]["format"] = "manual"
+    result["warnings"].append("Automatic contacts have not been calculated for this manual structure. Use Calculate contacts to calculate periodic contacts with the Python service.")
+    result["contactsCalculated"] = False
+    rebuilt = rebuild(result)
+    assert len(rebuilt["atoms"]) == 118
+    assert rebuilt["contactsCalculated"] is True
+    assert not any("Automatic contacts have not been calculated" in warning for warning in rebuilt["warnings"])
