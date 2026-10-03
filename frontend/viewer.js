@@ -287,6 +287,59 @@ export class CrystalViewer {
     }
     ctx.restore();
   }
+  captureScene({width,height,dpi=300,axes=true}) {
+    validateCaptureSize(width,height,dpi,this.exportLimit());
+    if(!this.model||!this.settings)throw new Error('Load a structure before exporting.');
+    const renderer=this.renderer;
+    const size=renderer.getSize(new THREE.Vector2()),pixelRatio=renderer.getPixelRatio();
+    const oldColor=renderer.getClearColor(new THREE.Color()),oldAlpha=renderer.getClearAlpha();
+    const oldTarget=renderer.getRenderTarget();
+    const oldCubeFace=renderer.getActiveCubeFace(),oldMipmapLevel=renderer.getActiveMipmapLevel();
+    const oldViewport=renderer.getViewport(new THREE.Vector4());
+    const oldScissor=renderer.getScissor(new THREE.Vector4()),oldScissorTest=renderer.getScissorTest();
+    const previewVisible=this.connectionPreview.visible;
+    const exportCamera=this.camera.clone();exportCamera.updateMatrixWorld(true);
+    const aspect=(exportCamera.right-exportCamera.left)/(exportCamera.top-exportCamera.bottom);
+    if(!Number.isFinite(aspect)||aspect<=0)throw new Error('The current camera view cannot be exported.');
+    const viewWidth=Math.max(1,Math.min(width,Math.round(height*aspect)));
+    const viewHeight=Math.max(1,Math.min(height,Math.round(width/aspect)));
+    const viewX=Math.floor((width-viewWidth)/2),viewBottom=Math.floor((height-viewHeight)/2);
+    const viewY=height-viewBottom-viewHeight;
+    const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
+    const ctx=canvas.getContext('2d',{willReadFrequently:true});
+    if(!ctx)throw new Error('A canvas for the scene could not be created.');
+    let result;
+    try {
+      this.connectionPreview.visible=false;
+      renderer.setRenderTarget(null);renderer.setPixelRatio(1);
+      renderer.setSize(width,height,false);renderer.setClearColor(0xffffff,0);
+      renderer.setScissorTest(false);renderer.clear(true,true,true);
+      renderer.setViewport(viewX,viewBottom,viewWidth,viewHeight);
+      renderer.setScissor(viewX,viewBottom,viewWidth,viewHeight);renderer.setScissorTest(true);
+      renderer.render(this.scene,exportCamera);ctx.drawImage(renderer.domElement,0,0);
+      if(axes&&this.settings.showAxes){
+        ctx.save();ctx.beginPath();ctx.rect(viewX,viewY,viewWidth,viewHeight);ctx.clip();ctx.translate(viewX,viewY);
+        this.drawExportAxes(ctx,exportCamera,viewWidth,viewHeight,Math.max(6,Math.round(Math.min(viewWidth,viewHeight)*.023)));
+        ctx.restore();
+      }
+      const diagnostics={mode:'current-scene',width,height,dpi,transparent:true,legend:false,preserveFraming:true,
+        viewport:{x:viewX,y:viewY,width:viewWidth,height:viewHeight},
+        camera:{position:exportCamera.position.toArray(),quaternion:exportCamera.quaternion.toArray(),
+          up:exportCamera.up.toArray(),zoom:exportCamera.zoom,left:exportCamera.left,right:exportCamera.right,
+          top:exportCamera.top,bottom:exportCamera.bottom,near:exportCamera.near,far:exportCamera.far},
+        sceneBounds:scanAlphaBounds(ctx,width,height)};
+      const dataUrl=canvas.toDataURL('image/png');
+      if(!dataUrl.startsWith('data:image/png;'))throw new Error('The requested scene is too large for this browser.');
+      this.lastCaptureDiagnostics=diagnostics;result={canvas,dataUrl,diagnostics};
+    } finally {
+      this.connectionPreview.visible=previewVisible;
+      renderer.setPixelRatio(pixelRatio);renderer.setSize(size.x,size.y,false);renderer.setClearColor(oldColor,oldAlpha);
+      renderer.setRenderTarget(oldTarget,oldCubeFace,oldMipmapLevel);
+      renderer.setViewport(oldViewport);renderer.setScissor(oldScissor);renderer.setScissorTest(oldScissorTest);
+      renderer.render(this.scene,this.camera);this.updateLabels();
+    }
+    return result;
+  }
   capture({width,height,transparent=false,legend=true,dpi=300,legendGapCm=1}) {
     validateCaptureSize(width,height,dpi,this.exportLimit());
     if(!this.model||!this.settings)throw new Error('Load a structure before exporting.');

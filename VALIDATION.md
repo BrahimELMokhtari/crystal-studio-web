@@ -1,4 +1,16 @@
-# Version 1.2 validation
+# Version 1.3 validation
+
+Checked on 3 October 2026. This release adds a current-view transparent scene export and optional managed-account/hosted-payment integrations. The Python API is unchanged.
+
+- **63 JavaScript tests passed:** all earlier geometry, manual input, sizing and figure checks, plus 17 account-service checks and two optional payment-link checks. Provider configuration rejects secret/service-role keys and unsafe callback destinations. Missing configuration makes no account SDK requests.
+- **Current scene PNG checked:** a real 394 x 394 PNG at 400 DPI contains both visible crystal pixels and alpha-zero empty areas. The camera keeps its zoom and pan (within floating-point tolerance), and display settings are unchanged. Current-scene mode hides figure background/legend controls and remains distinct from fitted publication figures.
+- **Real account SDK with simulated HTTP checked:** signup password confirmation and email-verification pending state; invalid credentials; successful sign-in; session persistence across reload; local logout; a neutral password-reset response; one-use PKCE recovery; reloading before setting a new password; successful password update. Password fields are cleared after submitting. These checks do not verify production email delivery or a live Supabase project.
+- **Optional support checked:** separate monthly and one-time hosted checkout links use HTTPS and open with noopener/noreferrer. Unconfigured links stay absent. Registration and contributions never block structure editing or exports. No real payment was made.
+- **Responsive and production checks passed:** account/support dialogs fit 390 and 768 px layouts; existing WebGL/import/contact/project/PNG/PDF checks pass at four viewport sizes. The production build works under the GitHub Pages repository path with dynamically loaded PDF support and no script errors.
+
+Run `tests/community.py` with Python Playwright and installed Chrome. Full account checks use the isolated mock-provider Vite server described in [ACCOUNTS_AND_SUPPORT.md](ACCOUNTS_AND_SUPPORT.md); `--public-only --url <site>` checks transparent downloads and unconfigured optional services. The production site still requires the owner's public Supabase configuration, public-user SMTP delivery setup and real recipient-owned payment links to activate registration and payments. No placeholder recipient or fake account system is published.
+
+## Previous version 1.2 validation
 
 Checked on 3 October 2026. This release adds direct mouse connections, independent element sizes and genuine 5,000 DPI browser exports. The Python API is unchanged.
 

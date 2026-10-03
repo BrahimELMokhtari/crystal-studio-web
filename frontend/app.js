@@ -4,6 +4,7 @@ import { CrystalViewer } from './viewer.js';
 import { paintLegendBall } from './legend.js';
 import { validateStructure, validateProject, measureAtoms, exportDimensions, pngWithDpi, getDisplayBonds, remapCustomBonds, MAX_EXPORT_DPI, MAX_EXPORT_PIXELS } from './model.js';
 import { buildManualStructure, parseManualAtomRows } from './manual.js';
+import { initializeCommunity } from './community.js';
 
 const $ = selector => document.querySelector(selector);
 const compactLayout=matchMedia('(max-width: 980px)');
@@ -26,6 +27,7 @@ try { apiBase = normalizeApi(storageRead() ?? import.meta.env.VITE_API_BASE_URL 
 function controlsBusy() {
   for (const id of ['save-project','apply-supercell','calculate-contacts']) $('#' + id).disabled = requestBusy || exportBusy || !state.view;
   $('#open-export').disabled = requestBusy || exportBusy || !state.view || !viewer;
+  $('#save-transparent-scene').disabled = requestBusy || exportBusy || !state.view || !viewer;
   const pair = selectedConnection();
   $('#connect-selected').disabled = requestBusy || exportBusy || state.selection.length !== 2 || pair !== undefined;
   $('#disconnect-selected').disabled = requestBusy || exportBusy || pair === undefined;
@@ -266,7 +268,7 @@ function exportSummary() {
   $('#fit-export-size').hidden=true;
   try{
     const dims=exportDimensions(widthCm,heightCm,dpi,limit);
-    $('#export-summary').textContent=dims.width.toLocaleString()+' × '+dims.height.toLocaleString()+' px · '+dims.widthCm+' × '+dims.heightCm+' cm · '+dims.dpi+' DPI';$('#export-error').hidden=true;$('#export-submit').disabled=false;
+    $('#export-summary').textContent=dims.width.toLocaleString()+' × '+dims.height.toLocaleString()+' px · '+dims.widthCm+' × '+dims.heightCm+' cm · '+dims.dpi+' DPI';$('#export-error').hidden=true;$('#export-submit').disabled=exportBusy;
   }catch(error){
     const validInputs=[widthCm,heightCm].every(n=>Number.isFinite(n)&&n>=1&&n<=30)&&Number.isInteger(dpi)&&dpi>=72&&dpi<=MAX_EXPORT_DPI;
     const squareCm=Math.floor(Math.min(30,Math.min(limit,Math.sqrt(MAX_EXPORT_PIXELS))*2.54/dpi)*10)/10;
@@ -285,14 +287,25 @@ $('#fit-export-size').onclick=()=>{
   exportSummary();
 };
 for(const id of ['export-width','export-height','export-dpi'])$('#'+id).oninput=exportSummary;
-$('#open-export').onclick=()=>{if(!viewer||!state.view)return;exportSummary();$('#export-dialog').showModal();};
+function syncExportContent() {
+  const scene=$('#export-content').value==='scene';
+  $('#export-background').disabled=scene;$('#export-legend').disabled=scene;
+  $('#export-background').closest('label').hidden=scene;$('#export-legend').closest('label').hidden=scene;
+  $('#figure-export-help').hidden=scene;$('#scene-export-help').hidden=!scene;
+  $('#export-title').textContent=scene?'Save your transparent scene':'Export your figure';
+  $('#export-submit').textContent=scene?'Download scene':'Download figure';
+}
+$('#export-content').onchange=syncExportContent;
+$('#open-export').onclick=()=>{if(!viewer||!state.view)return;$('#export-content').value='figure';syncExportContent();exportSummary();$('#export-dialog').showModal();};
+$('#save-transparent-scene').onclick=()=>{if(!viewer||!state.view)return;$('#export-content').value='scene';$('#export-background').value='transparent';$('#export-format').value='png';syncExportContent();exportSummary();$('#export-dialog').showModal();};
 $('#export-form').onsubmit=async event=>{
-  event.preventDefault();if(!viewer)return;exportBusy=true;controlsBusy();$('#export-submit').disabled=true;
-  try{const dims=exportDimensions(Number($('#export-width').value),Number($('#export-height').value),Number($('#export-dpi').value),viewer.exportLimit());const title=state.view.name,stem=fileStem();const captured=viewer.capture({...dims,transparent:$('#export-background').value==='transparent',legend:$('#export-legend').checked,legendGapCm:1});const data=captured.dataUrl;
+  event.preventDefault();if(!viewer||exportBusy)return;exportBusy=true;controlsBusy();$('#export-submit').disabled=true;
+  try{const dims=exportDimensions(Number($('#export-width').value),Number($('#export-height').value),Number($('#export-dpi').value),viewer.exportLimit());const scene=$('#export-content').value==='scene',title=state.view.name,stem=fileStem()+(scene?'-scene':'');const captured=scene?viewer.captureScene(dims):viewer.capture({...dims,transparent:$('#export-background').value==='transparent',legend:$('#export-legend').checked,legendGapCm:1});const data=captured.dataUrl;
     if($('#export-format').value==='png'){const bytes=Uint8Array.from(atob(data.split(',')[1]),c=>c.charCodeAt(0));download(new Blob([pngWithDpi(bytes,dims.dpi)],{type:'image/png'}),stem+'.png');}
     else{const {jsPDF}=await import('jspdf');const pdf=new jsPDF({orientation:dims.widthCm>=dims.heightCm?'landscape':'portrait',unit:'mm',format:[dims.widthCm*10,dims.heightCm*10],compress:true});pdf.setProperties({title,subject:'Crystal structure raster figure',creator:'Crystal Studio Web'});pdf.addImage(data,'PNG',0,0,dims.widthCm*10,dims.heightCm*10);pdf.save(stem+'.pdf');}
     $('#export-dialog').close();say('Figure exported at '+dims.width+' × '+dims.height+' pixels and '+dims.dpi+' DPI.');
   }catch(error){$('#export-error').textContent=error.message;$('#export-error').hidden=false;}finally{exportBusy=false;controlsBusy();$('#export-submit').disabled=false;}
 };
 try { viewer=new CrystalViewer($('#viewport'),selectAtom,connectAtoms); } catch(error) { $('#webgl-error').hidden=false;$('#webgl-error').textContent='The 3D viewer requires WebGL 2. Structure data and atom tables remain available. '+error.message; }
+initializeCommunity();
 if(examples.length){$('#example-select').value=examples[0].id;acceptUnit(structuredClone(examples[0].structure));say('Ready. Explore the example, or open your own structure.');}else{say('Example structures are being prepared. Connect your Python service and open a CIF file.');controlsBusy();}

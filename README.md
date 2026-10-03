@@ -6,6 +6,10 @@ The deployed workspace is available at [Crystal Studio Web](https://brahimelmokh
 
 See [VALIDATION.md](VALIDATION.md) for tested features and export measurements. The supplied archive also includes a production frontend build in `frontend/dist`.
 
+Choose **Save transparent scene** to download the current 3D view without a background. The export preserves rotation, zoom and pan, the visible cell/axes/connections and selected-atom outlines. It omits the element legend and pending mouse connection preview. Resolution and physical dimensions remain adjustable up to 5,000 DPI within device limits. Rectangular outputs preserve proportions with transparent margins. **Export figure** continues to fit a publication figure with its optional ball legend and 1 cm spacing.
+
+**Account** provides optional signup, login, confirmation and password recovery once the owner's Supabase project is configured. **Support this tool** offers optional EUR 1/month and a flexible one-time contribution through configured hosted payment links. All tools stay free without an account or payment. Projects remain local downloads. See [ACCOUNTS_AND_SUPPORT.md](ACCOUNTS_AND_SUPPORT.md) for activation steps; public account and payment services are not active until the owner supplies working configuration.
+
 ## Run locally
 
 Use Python 3.12 or later and Node.js 22.12 or later. The app also supports the Python 3.14 installation used on this Windows setup. From the `crystal_studio_web` folder, open two terminals.

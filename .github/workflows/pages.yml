@@ -43,6 +43,10 @@ jobs:
         env:
           VITE_BASE_PATH: "/${{ github.event.repository.name }}/"
           VITE_API_BASE_URL: ${{ vars.PYTHON_API_URL }}
+          VITE_SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.SUPABASE_PUBLISHABLE_KEY }}
+          VITE_DONATION_MONTHLY_URL: ${{ vars.DONATION_MONTHLY_URL }}
+          VITE_DONATION_ONCE_URL: ${{ vars.DONATION_ONCE_URL }}
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
         with:
