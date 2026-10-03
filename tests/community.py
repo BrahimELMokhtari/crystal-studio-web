@@ -36,6 +36,12 @@ def main():
         expect(page.locator('#account-unavailable')).to_be_visible()
         expect(page.locator('#account-form')).to_be_hidden()
         page.get_by_role('button', name='Close account', exact=True).click()
+        expect(page.locator('#open-account')).to_have_text('Login')
+        page.locator('#open-signup').click()
+        expect(page.locator('#account-title')).to_have_text('Create your account')
+        expect(page.locator('#account-unavailable')).to_be_visible()
+        expect(page.locator('#account-form')).to_be_hidden()
+        page.get_by_role('button', name='Close account', exact=True).click()
         page.locator('#open-support').click()
         expect(page.locator('#support-unavailable')).to_be_visible()
         expect(page.locator('#donate-monthly')).to_be_hidden()
@@ -89,8 +95,10 @@ def main():
             assert all(abs(a-b)<1e-7 for a,b in pairs), ('Export preserves camera',key,first,last)
         assert before['settings'] == after['settings'], 'Export preserves display settings'
         passed('Actual scene PNG has transparent pixels and preserves zoom/pan/settings')
-        for width in [390, 768]:
+        for width in [320,390,768,1024,1440]:
             page.set_viewport_size({'width':width,'height':900})
+            for button in page.locator('.topbar-actions button').all():
+                if button.is_visible():assert button.bounding_box()['height']>=44,(width,button.inner_text())
             page.locator('#open-support').click()
             assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'No horizontal page overflow'
             bounds=page.locator('#support-dialog').bounding_box()
@@ -126,7 +134,10 @@ def main():
             auth.wait_for_load_state('networkidle')
             auth.locator('#open-account').click()
             expect(auth.locator('#account-unavailable')).to_be_hidden()
-            auth.locator('#account-switch').click()
+            expect(auth.locator('#account-submit')).to_have_text('Sign in')
+            auth.get_by_role('button', name='Close account', exact=True).click()
+            auth.locator('#open-signup').click()
+            expect(auth.locator('#account-submit')).to_have_text('Create account')
             auth.locator('#account-email').fill(user['email'])
             auth.locator('#account-password').fill('test-password-123')
             auth.locator('#account-confirm').fill('different-password')
@@ -148,6 +159,8 @@ def main():
             auth.locator('#account-submit').click()
             expect(auth.locator('#account-profile')).to_be_visible()
             expect(auth.locator('#account-profile-email')).to_have_text(user['email'])
+            expect(auth.locator('#open-signup')).to_be_hidden()
+            expect(auth.locator('#open-account')).to_have_text('My account')
             auth.get_by_role('button', name='Close account', exact=True).click()
             auth.reload()
             auth.wait_for_load_state('networkidle')
@@ -155,6 +168,8 @@ def main():
             expect(auth.locator('#account-profile')).to_be_visible()
             auth.locator('#account-signout').click()
             expect(auth.locator('#account-form')).to_be_visible()
+            expect(auth.locator('#open-signup')).to_be_visible()
+            expect(auth.locator('#open-account')).to_have_text('Login')
             auth.locator('#account-forgot').click()
             auth.locator('#account-email').fill(user['email'])
             auth.locator('#account-submit').click()
@@ -172,6 +187,9 @@ def main():
             assert 'code=' not in auth.url, auth.url
             auth.reload()
             auth.wait_for_load_state('networkidle')
+            expect(auth.locator('#account-title')).to_have_text('Choose a new password')
+            auth.get_by_role('button', name='Close account', exact=True).click()
+            auth.locator('#open-account').click()
             expect(auth.locator('#account-title')).to_have_text('Choose a new password')
             auth.locator('#account-password').fill('updated-password-123')
             auth.locator('#account-confirm').fill('updated-password-123')
@@ -193,6 +211,14 @@ def main():
             assert all('password' not in key for key in auth.evaluate('Object.keys(localStorage)'))
             assert not auth_errors, auth_errors
             passed('Configured optional payments use separate secure hosted links and never gate exports')
+            auth.goto(args.auth_url+'?account=recovery&code=unverified-code')
+            auth.wait_for_load_state('networkidle')
+            expect(auth.locator('#account-message')).to_contain_text('could not be verified')
+            expect(auth.locator('#account-profile')).to_be_visible()
+            expect(auth.locator('#account-form')).to_be_hidden()
+            assert 'account=recovery' not in auth.url and 'code=' not in auth.url
+            assert len([call for call in calls if 'grant_type=pkce' in call['url']])==1
+            passed('A callback without its browser verifier cannot become recovery for an existing unrelated session')
             auth.close()
         browser.close()
     (output/'report.json').write_text(json.dumps({'checks':checks,'accountVerification':'Mock HTTP with real SDK; not live provider verification'},indent=2))

@@ -1,4 +1,16 @@
-# Version 1.4 validation
+# Version 1.5 validation
+
+Checked on 3 October 2026. This release makes email Login/Create account visible in the header and adds a validated community-settings deployment helper. The Python API is unchanged.
+
+- **90 JavaScript tests passed:** 15 new tests cover complete and partial public configuration, secret/service-role/placeholder/test-link rejection, preserved omitted settings, fixed-repository restrictions, dry runs without CLI calls, stdin-only variable writes, no value logging, workflow dispatch after successful writes and safe failure handling. Existing scientific/account tests pass.
+- **Real SDK/browser auth checks passed with mock HTTP:** explicit Login opens signin; Create account opens email signup directly; successful sign-in displays My account and hides signup; logout restores both entry points. Existing signup confirmation, credential errors, persistent sessions and password reset pass. Recovery survives reload and reopening from the header. A callback lacking its local PKCE verifier cannot select password recovery for an unrelated existing session; it shows useful feedback and clears stale callback intent.
+- **Provider-unconfigured production checks passed:** login/signup buttons show correctly titled notices without collecting credentials; absent checkout destinations remain hidden. Crystal tools and transparent exports work without accounts or support payments.
+- **Responsive/regression checks passed:** header controls meet44px touch targets with no horizontal overflow at320,390,768,1024 and1440px. Production repository-path assets, actual WebGL, PDF exports and all preset/reference-site browser cases pass.
+- **Activation helper tested without live configuration:** --help runs safely and importing the script does not execute it. The supplied external example configuration is rejected and changes nothing. Runner-injected tests verify intended public-variable writes/workflow dispatch; no fake settings or payment recipients are applied to the real repository.
+
+The real repository still has only PYTHON_API_URL configured. Supabase/Stripe connections or actual public project/payment settings are required to activate registration and donations; SMTP delivery and hosted checkout amounts must then be verified with those providers. Mock SDK tests do not demonstrate live email delivery or payments. Activation instructions are in [ACCOUNTS_AND_SUPPORT.md](ACCOUNTS_AND_SUPPORT.md).
+
+## Previous version 1.4 validation
 
 Checked on 3 October 2026. This release adds seven constrained cell presets and FCC/BCC/Simple cubic reference templates to the manual editor. The Python API and optional account integration are unchanged.
 

@@ -4,6 +4,43 @@ The workspace, imports, manual editing, projects and all exports remain availabl
 
 Until the owner supplies working provider configuration, the account and support dialogs explain that the services are being prepared. They do not accept credentials, create pretend accounts or invent a payment recipient.
 
+The header has separate **Login** and **Create account** buttons. Create account opens email signup directly; Login opens sign-in. After login, **My account** replaces Login and the signup button is hidden. Email confirmation, password recovery and logout use the configured Supabase project. All tools remain free and usable without logging in.
+
+## Connect and deploy the setup
+
+Install and connect **Supabase** and **Stripe** to allow setup through the connected accounts. Alternatively, supply the public Supabase project URL/publishable key and two recipient-owned hosted payment links using the helper below. No personal access token, service-role key, SMTP password or Stripe secret belongs in this configuration file.
+
+1. Complete the provider-side account and payment setup described below. Public registration requires working email delivery; a browser key alone does not configure SMTP.
+2. Save a JSON file **outside this public project**, for example `../.deployment_auth/community/public-settings.json`, with only the settings to activate:
+
+```json
+{
+  "VITE_SUPABASE_URL": "https://YOUR-PROJECT.supabase.co",
+  "VITE_SUPABASE_PUBLISHABLE_KEY": "YOUR-PUBLIC-PUBLISHABLE-KEY",
+  "VITE_DONATION_MONTHLY_URL": "https://buy.stripe.com/YOUR-LIVE-MONTHLY-LINK",
+  "VITE_DONATION_ONCE_URL": "https://buy.stripe.com/YOUR-LIVE-CHOSEN-AMOUNT-LINK"
+}
+```
+
+These are placeholders, which the helper rejects. Replace them with actual public settings. The Supabase URL/key must be supplied together. Donation links can be supplied independently. Omit settings to preserve their existing values; blank strings do not delete settings.
+
+3. From the `crystal_studio_web` directory, validate without changing anything:
+
+```powershell
+node scripts/configure-community.mjs --file ../.deployment_auth/community/public-settings.json --check
+```
+
+4. Apply the validated settings and dispatch the existing GitHub Pages workflow:
+
+```powershell
+$env:GH_CONFIG_DIR = (Resolve-Path ../.deployment_auth/github).Path
+node scripts/configure-community.mjs --file ../.deployment_auth/community/public-settings.json --github-cli ../.deployment_tools/github/bin/gh.exe --apply --deploy
+```
+
+On another computer, sign in using `gh auth login` and omit the portable `--github-cli` argument. The helper is deliberately restricted to `BrahimELMokhtari/crystal-studio-web`; it changes only the supplied public Actions variables. All settings are validated before any GitHub call. It refuses secret keys, unsupported fields, example projects and Stripe test links. Public values travel through stdin and are absent from printed summaries and command arguments. A variable-write failure stops workflow dispatch; check existing variables before retrying, since earlier writes may have succeeded.
+
+5. Wait for [the deployment workflow](https://github.com/BrahimELMokhtari/crystal-studio-web/actions/workflows/pages.yml) to succeed, then verify real signup email delivery, login, password reset and both checkout destinations on [Crystal Studio](https://brahimelmokhtari.github.io/crystal-studio-web/). A successful helper run confirms variable updates/workflow dispatch, not completed hosting, delivered emails or checkout prices. Monthly support must actually be EUR 1/month and flexible support must use the intended recipient account.
+
 ## Activate accounts
 
 1. Create a Supabase project in your own account. Copy its HTTPS project URL and **publishable key** from its API settings. The older **anon** browser key also works. Never use a secret or service-role key in this frontend.

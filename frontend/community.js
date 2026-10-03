@@ -14,6 +14,10 @@ export function initializeCommunity(env = import.meta.env) {
     const url = new URL(location.href);url.searchParams.delete('account');
     history.replaceState(null,'',url.pathname+url.search+url.hash);
   }
+  function clearUnusedCallback() {
+    const url=new URL(location.href);url.searchParams.delete('code');url.searchParams.delete('account');
+    history.replaceState(null,'',url.pathname+url.search+url.hash);
+  }
   function ensureSubscription() {
     if(!subscriptionPromise) {
       const attempt=accounts.onAuthStateChange(onAuth);subscriptionPromise=attempt;
@@ -28,7 +32,8 @@ export function initializeCommunity(env = import.meta.env) {
   }
   function draw() {
     const profile = !!session && !recovery;
-    $('#open-account').textContent = session ? 'My account' : 'Account';
+    $('#open-account').textContent = session ? 'My account' : 'Login';
+    $('#open-signup').hidden = !!session;$('#open-signup').disabled = pending;
     $('#account-title').textContent = profile ? 'Your account' : titles[mode];
     $('#account-unavailable').hidden = config.enabled;
     form.hidden = !config.enabled || profile;
@@ -56,7 +61,12 @@ export function initializeCommunity(env = import.meta.env) {
   }
   function changeMode(next) { mode = next; form.reset(); message(); draw(); }
   function open() { draw(); if (!dialog.open) dialog.showModal(); }
-  $('#open-account').onclick = open;
+  function openFromHeader(next) {
+    if(!pending&&!recovery&&!session&&mode!==next)changeMode(next);
+    open();
+  }
+  $('#open-account').onclick = () => openFromHeader('signin');
+  $('#open-signup').onclick = () => openFromHeader('signup');
   $('#account-switch').onclick = () => changeMode(mode === 'signin' ? 'signup' : 'signin');
   $('#account-forgot').onclick = () => changeMode('reset');
   dialog.addEventListener('close', () => { form.reset(); if (!recovery) mode = 'signin'; message(); });
@@ -103,6 +113,12 @@ export function initializeCommunity(env = import.meta.env) {
     let initialRevision;
     ensureSubscription().then(() => {initialRevision=authRevision;return accounts.getSession();}).then(data => {
       if(initialRevision===authRevision)session = data.session;
+      // A successful PKCE exchange removes its one-use code. A remaining code
+      // was not verified, even when this browser already has another session.
+      if(new URLSearchParams(location.search).has('code')) {
+        recovery=false;mode='signin';clearUnusedCallback();
+        message('This account link could not be verified. Open it in the browser where you requested it, or request a new link.',true);open();return;
+      }
       if(session&&new URLSearchParams(location.search).get('account')==='recovery') {recovery=true;mode='recovery';open();}
       draw();
       const params = new URLSearchParams(location.search), hash = new URLSearchParams(location.hash.slice(1));
@@ -111,7 +127,7 @@ export function initializeCommunity(env = import.meta.env) {
       }
     }).catch(error => {
       message(error.message || 'Unable to connect to accounts. You can continue using the workspace.', true);
-      if(new URLSearchParams(location.search).has('code')||new URLSearchParams(location.search).has('account')||location.hash.includes('error'))open();
+      if(new URLSearchParams(location.search).has('code')||new URLSearchParams(location.search).has('account')||location.hash.includes('error')){recovery=false;mode='signin';clearUnusedCallback();open();}
     });
   }
   for (const [id, url] of [['donate-monthly',support.monthly],['donate-once',support.once]]) {
