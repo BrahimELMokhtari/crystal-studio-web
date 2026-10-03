@@ -5,6 +5,7 @@ import { paintLegendBall } from './legend.js';
 import { validateStructure, validateProject, measureAtoms, exportDimensions, pngWithDpi, getDisplayBonds, remapCustomBonds, MAX_EXPORT_DPI, MAX_EXPORT_PIXELS } from './model.js';
 import { buildManualStructure, parseManualAtomRows } from './manual.js';
 import { initializeCommunity } from './community.js';
+import { initializeManualPresets } from './manual-presets-ui.js';
 
 const $ = selector => document.querySelector(selector);
 const compactLayout=matchMedia('(max-width: 980px)');
@@ -13,6 +14,7 @@ compactLayout.addEventListener('change',orderWorkspace);orderWorkspace();
 const node = (tag, text, className) => { const n = document.createElement(tag); if (text !== undefined) n.textContent = text; if (className) n.className = className; return n; };
 const initialSettings = () => ({ representation: 'ball-stick', atomScale: 1, elementScales: {}, bondScale: 1.1, showCell: true, showAxes: true, showPeriodic: true, showLegend: true, background: 'dark', colors: {}, repetitions: [1,1,1], connectionMode: 'automatic', customBonds: [] });
 const state = { unit: null, view: null, settings: initialSettings(), selection: [], generation: 0, applied: { bondScale: 1.1, repetitions: [1,1,1] } };
+const manualPresets=initializeManualPresets();
 let viewer, controller, debounce, requestBusy = false, exportBusy = false, mouseConnectMode = false, apiBase = '';
 const say = message => { $('#status').textContent = message; };
 function storageRead() { try { return localStorage.getItem('crystal-studio-api-url'); } catch { return null; } }
@@ -227,12 +229,13 @@ $('#copy-current-manual').onclick=()=>{
   ['a','b','c'].forEach((key,index)=>$('#manual-'+key).value=state.unit.cell.lengths[index]);
   ['alpha','beta','gamma'].forEach((key,index)=>$('#manual-'+key).value=state.unit.cell.angles[index]);
   $('#manual-atoms').value=state.unit.atoms.map(atom=>[atom.element,...atom.fractional,atom.occupancy].join(' ')).join('\n');
+  manualPresets.useCustomCell();
   $('#manual-error').hidden=true;
 };
 $('#manual-form').onsubmit=event=>{
   event.preventDefault();
   try {
-    const unit=buildManualStructure({name:$('#manual-name').value,lengths:['a','b','c'].map(key=>Number($('#manual-'+key).value)),angles:['alpha','beta','gamma'].map(key=>Number($('#manual-'+key).value)),atoms:parseManualAtomRows($('#manual-atoms').value)});
+    const unit=buildManualStructure({name:$('#manual-name').value,...manualPresets.readCell(),atoms:parseManualAtomRows($('#manual-atoms').value)});
     clearTimeout(debounce);acceptUnit(unit);$('#manual-dialog').close();say('Manual structure created. Select two atoms to connect them, or calculate contacts with the Python service.');
   }catch(error){$('#manual-error').textContent=error.message;$('#manual-error').hidden=false;}
 };

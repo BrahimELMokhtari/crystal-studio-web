@@ -1,4 +1,16 @@
-# Version 1.3 validation
+# Version 1.4 validation
+
+Checked on 3 October 2026. This release adds seven constrained cell presets and FCC/BCC/Simple cubic reference templates to the manual editor. The Python API and optional account integration are unchanged.
+
+- **75 JavaScript tests passed:** twelve new tests cover all preset metrics, free-parameter preservation, malformed inputs, impossible rhombohedral cells, periodic reference-site uniqueness, FCC/BCC/SC basis counts, independently checked skew geometry/volume, all 118 element choices and occupancy validation. All previous checks pass.
+- **Actual manual-editor browser checks passed:** all ten choices are available, changing the preset keeps atom text, dependent parameters track edits, and impossible trigonal angles are rejected without losing the draft. FCC default sites can carry independent Na/Cl/O/Og assignments and partial occupancy, which persist in saved projects.
+- **Transactional reference-site application checked:** identical sites are skipped, conflicting species or occupancies preserve all existing text, boundary1 matches origin0, empty/comment-only drafts work, and explicit replacement produces the selected rows. Unapplied invalid reference-picker drafts do not block creation from valid committed atom rows.
+- **Periodic bases and geometry checked:** FCC/BCC/Simple cubic templates contain4/2/1 unique periodic representatives. Saved hexagonal vectors independently match a=4, c=6 and gamma120 degrees. Copy current unit cell restores exact metrics and unlocks Custom mode.
+- **Responsive and regression checks passed:** the manual editor/reference picker has no horizontal overflow at320,390 and768 pixels. Existing real WebGL, local Python import/contact/supercell, manual-entry, project, PNG/PDF, high-resolution transparency and physical legend-gap checks pass. Optional unconfigured accounts/payments continue to leave all tools available.
+
+`tests/crystal-presets.py` uses native Python Playwright and installed Chrome; use `--url` for production/deployed checks. Browser artifacts remain excluded from publication. Email registration still requires the owner's Supabase connection/public project configuration and email delivery setup. No live accounts or donation recipients have been fabricated.
+
+## Previous version 1.3 validation
 
 Checked on 3 October 2026. This release adds a current-view transparent scene export and optional managed-account/hosted-payment integrations. The Python API is unchanged.
 

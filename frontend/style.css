@@ -147,6 +147,20 @@ input[type=checkbox]{width:17px;height:17px;accent-color:var(--teal);flex-shrink
 .support-button{color:#175f51;background:#eef6ed}
 .account-form,.account-profile{display:grid;gap:15px;min-width:0}
 .account-form input{min-height:44px;padding:10px 11px;width:100%;border:1px solid var(--border);border-radius:7px;color:var(--ink);background:white;font-size:12px}
+.manual-modal input[readonly]{background:#eef2ee;color:#63756f;cursor:default}
+.reference-editor{border:1px solid var(--border);border-radius:8px;min-width:0}
+.reference-editor>summary{padding:13px;font-size:13px;font-weight:600;cursor:pointer;min-height:44px}
+.reference-editor-body{padding:0 13px 13px;display:grid;gap:12px}
+.reference-editor-body>p{margin:0;font-size:11px;line-height:1.7;color:var(--muted)}
+#reference-sites{max-height:345px;overflow:auto;display:grid;gap:10px;padding:2px}
+.reference-site-row{display:grid;grid-template-columns:minmax(130px,1fr) 90px 85px;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)}
+.reference-site-row:last-child{border-bottom:0}
+.reference-site-label{display:flex;gap:9px;align-items:center;font-size:12px;min-height:44px}
+.reference-site-label>span{display:grid;gap:4px}.reference-site-label strong{font-weight:500}.reference-site-label small{font-family:Consolas,monospace;color:var(--muted);font-size:11px}
+.reference-site-row .field{gap:4px;font-size:10px}.reference-site-row input[type=text]{font-variant-numeric:tabular-nums}
+.reference-site-row [disabled]{background:#f4f6f2;color:#78877e}
+#manual-preset-error,#reference-message.warning{color:#a23725}
+@media(max-width:520px){.reference-site-row{grid-template-columns:1fr 1fr}.reference-site-label{grid-column:1/-1}.reference-site-row .field select,.reference-site-row .field input{width:100%}}
 .account-options{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px}
 .text-button{min-height:44px;background:transparent;border:0;padding:8px 0;color:var(--teal);font-size:12px;text-decoration:underline;text-underline-offset:4px}
 .account-free-note,.support-free-note{padding:12px 14px;border-left:3px solid #3d8a73;background:#f0f6ee;border-radius:4px}
