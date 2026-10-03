@@ -2,7 +2,9 @@
 
 The workspace, imports, manual editing, projects and all exports remain available without registration or payment. Authentication is managed by Supabase; the Python API remains stateless. Projects continue to download to the user's device. This release does not upload projects to an account or introduce paid features.
 
-Until the owner supplies working provider configuration, the account and support dialogs explain that the services are being prepared. They do not accept credentials, create pretend accounts or invent a payment recipient.
+On 3 October 2026, the owner's Supabase project `ypgyefsqgidhoidrkpcb` was connected and the account forms were enabled on [Crystal Studio](https://brahimelmokhtari.github.io/crystal-studio-web/) through [deployment 37149654825](https://github.com/BrahimELMokhtari/crystal-studio-web/actions/runs/37149654825). The real public key and browser connection were accepted; email signup is enabled and email confirmation is required. Live Login, Create account and password-reset forms passed browser checks. Production redirects, custom SMTP and delivered confirmation/reset emails have **not yet been verified**. Donation links are still missing, so support payments remain inactive.
+
+When provider settings are absent, the corresponding dialog explains that the service is being prepared. The application does not create pretend accounts or invent a payment recipient.
 
 The header has separate **Login** and **Create account** buttons. Create account opens email signup directly; Login opens sign-in. After login, **My account** replaces Login and the signup button is hidden. Email confirmation, password recovery and logout use the configured Supabase project. All tools remain free and usable without logging in.
 
@@ -52,6 +54,8 @@ On another computer, sign in using `gh auth login` and omit the portable `--gith
 
 Local equivalents in the excluded `frontend/.env.local` are `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY`. Restart Vite after changing them. The Supabase SDK alone stores and refreshes sessions; the application does not persist passwords. Public keys do not grant privileged database access; use Supabase Row Level Security if cloud data storage is added later. [Supabase API keys](https://supabase.com/docs/guides/api/api-keys), [redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls), [PKCE](https://supabase.com/docs/guides/auth/sessions/pkce-flow)
 
+This hosted Auth integration connects through the SDK using the project URL/public key. `supabase init` and `supabase link` are optional local-development/management commands and are not required to activate these forms. CLI `supabase login` requires a separate Supabase account authorization; a public publishable key does not authorize project management. Redirects and SMTP must be configured through an authorized dashboard, CLI or Supabase connection. [Supabase CLI reference](https://supabase.com/docs/reference/cli/supabase-link)
+
 ## Activate optional support
 
 Use payment links created in the account that should receive the funds. No secret payment key or card data belongs in this application.
@@ -67,6 +71,6 @@ Checkout opens in a separate tab with `noopener noreferrer`. Donations do not re
 
 `npm.cmd test` includes provider configuration guards, lazy authentication, callback errors, signup, sign-in, session events, password recovery, credential redaction and payment-link validation.
 
-The native browser script `tests/community.py` verifies the actual transparent scene download and responsive optional dialogs. Its account tests run the real Supabase SDK against **mock HTTP** on an isolated local Vite server; they do not prove live email delivery or actual payments. Run with `--public-only --url <site>` to check the unconfigured deployed site.
+The native browser script `tests/community.py` verifies the actual transparent scene download and responsive optional dialogs. Its account tests run the real Supabase SDK against **mock HTTP** on an isolated local Vite server; they do not prove live email delivery or actual payments. Its `--url` checks expect accounts to be unconfigured, including with `--public-only`; do not use it against the now-configured production site. Never point `--auth-url` at production: interception targets only the dummy `crystaltest.supabase.co` host. For a configured live site, check form visibility and GET `/auth/v1/settings` without submitting credentials; signup/reset delivery needs a separate real-email verification.
 
-For the full browser check, run an isolated Vite server on port 5176 with a dummy public test key, `VITE_SUPABASE_URL=https://crystaltest.supabase.co`, `VITE_DONATION_MONTHLY_URL=https://buy.stripe.com/test_monthly` and `VITE_DONATION_ONCE_URL=https://buy.stripe.com/test_once`. Keep the ordinary, unconfigured server on port 5174. Run `python tests/community.py` with Python Playwright and installed Chrome. These synthetic settings must never be used in a production deployment.
+For the full browser check, run an isolated Vite server on port 5176 with a dummy public test key, `VITE_SUPABASE_URL=https://crystaltest.supabase.co`, `VITE_DONATION_MONTHLY_URL=https://buy.stripe.com/test_monthly` and `VITE_DONATION_ONCE_URL=https://buy.stripe.com/test_once`. Use a separate unconfigured fixture server for `--url`, for example a clean source checkout without `frontend/.env.local`; the ordinary development server now uses the owner's public Supabase configuration. Run `python tests/community.py --url <unconfigured-fixture-url>` with Python Playwright and installed Chrome. These synthetic settings must never be used in a production deployment.
