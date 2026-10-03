@@ -5,7 +5,7 @@ export function initializeCommunity(env = import.meta.env) {
   const $ = selector => document.querySelector(selector);
   const config = validateAccountConfig(env), accounts = createAccountService(config);
   const support = supportConfig(env);
-  let mode = 'signin', session = null, pending = false, recovery = false, authRevision = 0;
+  let mode = 'signin', session = null, pending = false, recovery = false, authRevision = 0, subscriptionPromise;
   const dialog = $('#account-dialog'), form = $('#account-form');
   const titles = { signin: 'Welcome to Crystal Studio', signup: 'Create your account', reset: 'Reset your password', recovery: 'Choose a new password' };
   const actions = { signin: 'Sign in', signup: 'Create account', reset: 'Send reset link', recovery: 'Save new password' };
@@ -13,6 +13,13 @@ export function initializeCommunity(env = import.meta.env) {
   function clearRecoveryMarker() {
     const url = new URL(location.href);url.searchParams.delete('account');
     history.replaceState(null,'',url.pathname+url.search+url.hash);
+  }
+  function ensureSubscription() {
+    if(!subscriptionPromise) {
+      const attempt=accounts.onAuthStateChange(onAuth);subscriptionPromise=attempt;
+      attempt.catch(() => {if(subscriptionPromise===attempt)subscriptionPromise=undefined;});
+    }
+    return subscriptionPromise;
   }
   function message(text = '', error = false) {
     $('#account-message').textContent = text;
@@ -61,6 +68,7 @@ export function initializeCommunity(env = import.meta.env) {
     }
     const activeMode = mode; pending = true; message(); draw();
     try {
+      await ensureSubscription();
       if (activeMode === 'signin') {
         const data = await accounts.signIn(email, password); session = data.session;
         message('Signed in. The workspace remains free to use.');
@@ -88,12 +96,12 @@ export function initializeCommunity(env = import.meta.env) {
     authRevision++;
     session = nextSession;
     if (event === 'PASSWORD_RECOVERY') { recovery = true; mode = 'recovery'; form.reset(); message(); open(); }
-    else if (event === 'SIGNED_OUT') { recovery = false; mode = 'signin'; }
+    else if (event === 'SIGNED_OUT') { recovery = false; mode = 'signin';clearRecoveryMarker(); }
     draw();
   }
   if (config.enabled) {
     let initialRevision;
-    accounts.onAuthStateChange(onAuth).then(() => {initialRevision=authRevision;return accounts.getSession();}).then(data => {
+    ensureSubscription().then(() => {initialRevision=authRevision;return accounts.getSession();}).then(data => {
       if(initialRevision===authRevision)session = data.session;
       if(session&&new URLSearchParams(location.search).get('account')==='recovery') {recovery=true;mode='recovery';open();}
       draw();

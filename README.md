@@ -127,6 +127,8 @@ The browser check uses the real local Python API to exercise structure imports, 
 
 Run `python tests/mouse-and-sizing.py` for actual mouse drags/clicks, canceled connections, ordinary camera interaction, independent element-size persistence and a real 5,000 DPI PNG. It also accepts `--url` for built or deployed frontends and uses installed Chrome with Python Playwright.
 
+Run `python tests/scene-capture.py` against the local Vite source server for independent current-view framing, transparent rectangular padding, excluded connection previews and restoration after an encoding failure. The optional-account browser checks and configuration are described in [ACCOUNTS_AND_SUPPORT.md](ACCOUNTS_AND_SUPPORT.md).
+
 ## Troubleshooting
 
 - **Viewer loads but imports fail:** check the configured API URL and its `/health` endpoint, then allow for Render's wake-up delay.
