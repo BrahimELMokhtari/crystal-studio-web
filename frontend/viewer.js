@@ -106,20 +106,20 @@ export class CrystalViewer {
     const renderer=this.renderer,camera=this.camera,size=renderer.getSize(new THREE.Vector2()),pixelRatio=renderer.getPixelRatio(),oldColor=renderer.getClearColor(new THREE.Color()),oldAlpha=renderer.getClearAlpha();
     const frustum={left:camera.left,right:camera.right,top:camera.top,bottom:camera.bottom};
     const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;const ctx=canvas.getContext('2d');
-    const legendLayout=legend?layoutElementLegend(ctx,this.model.elements,width,height):{height:0};
-    const sceneHeight=height-legendLayout.height,aspect=width/sceneHeight;
+    const legendLayout=legend?layoutElementLegend(ctx,this.model.elements,width,height):{width:0};
+    const sceneWidth=width-legendLayout.width,aspect=sceneWidth/height;
     const oldBackground=this.settings.background;let result;
     try {
       this.settings={...this.settings,background:'light'};this.build();
-      renderer.setPixelRatio(1);renderer.setSize(width,sceneHeight,false);renderer.setClearColor(0xffffff,transparent?0:1);
+      renderer.setPixelRatio(1);renderer.setSize(sceneWidth,height,false);renderer.setClearColor(0xffffff,transparent?0:1);
       const half=Math.max((frustum.top-frustum.bottom)/2,(frustum.right-frustum.left)/2/aspect);camera.top=half;camera.bottom=-half;camera.left=-half*aspect;camera.right=half*aspect;camera.updateProjectionMatrix();
       renderer.render(this.scene,camera);
       if(!transparent){ctx.fillStyle='#ffffff';ctx.fillRect(0,0,width,height);}
-      ctx.drawImage(renderer.domElement,0,legendLayout.height);
+      ctx.drawImage(renderer.domElement,legendLayout.width,0);
       if(legend) {
         drawElementLegend(ctx,legendLayout,this.settings.colors);
-        ctx.save();ctx.beginPath();ctx.rect(0,legendLayout.height,width,sceneHeight);ctx.clip();ctx.font=legendLayout.font+'px system-ui';ctx.fillStyle='#213b40';
-        for(const axis of this.labels){const p=axis.position.clone().project(camera);if(p.z>=-1&&p.z<=1)ctx.fillText(axis.name,(p.x+1)*width/2,legendLayout.height+(-p.y+1)*sceneHeight/2);}
+        ctx.save();ctx.beginPath();ctx.rect(legendLayout.width,0,sceneWidth,height);ctx.clip();ctx.font=Math.max(12,Math.round(Math.min(width,height)*.023))+'px system-ui';ctx.fillStyle='#213b40';
+        for(const axis of this.labels){const p=axis.position.clone().project(camera);if(p.z>=-1&&p.z<=1)ctx.fillText(axis.name,legendLayout.width+(p.x+1)*sceneWidth/2,(-p.y+1)*height/2);}
         ctx.restore();
       }
       result=canvas.toDataURL('image/png');

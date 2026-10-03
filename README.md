@@ -47,7 +47,7 @@ Load a bundled example or open a CIF or VESTA file, then inspect the structure i
 
 Download a project as JSON to keep a portable copy and restore it later. PNG and PDF exports are generated in your browser with the chosen physical size and DPI; PDFs embed a raster figure rather than vector geometry. Project downloads and images remain usable independently of the Python service; keep a downloaded JSON copy of work you need to retain.
 
-The element legend uses shaded balls that follow your chosen element colors. In PNG and PDF exports, the legend stays centered at the top in a separate area above the structure, independent of camera rotation and zoom. Multiple elements wrap into rows. Turn off the legend in export settings when you want a figure containing only the structure.
+The element legend uses large shaded balls and clear element symbols in a vertical list, following your chosen element colors. In PNG and PDF exports, it stays fixed in the upper-left corner, independent of camera rotation and zoom. A separate margin keeps the structure clear of the legend. Longer lists continue into additional columns. Turn off the legend in export settings when you want a figure containing only the structure.
 
 Uploaded source files are sent to the configured Python service for processing. The application does not persist them on the server or publish them to GitHub. Put private reference documents outside the public repository; the included `.gitignore` excludes common local upload/export folders. The API uses bounded processing, and the 3D rendering stays in the browser rather than requiring server-side VTK.
 
